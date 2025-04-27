@@ -7,6 +7,8 @@ from rest_framework_simplejwt.views import (
 from APIBackend.views import CustomTokenObtainPairView
 from rest_framework_simplejwt.views import TokenBlacklistView
 
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -18,3 +20,6 @@ urlpatterns = [
         "auth/jwt/logout/", TokenBlacklistView.as_view(), name="jwt-logout"
     ),  # <-- add this
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

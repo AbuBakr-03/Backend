@@ -64,11 +64,14 @@ class StatusSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+# APIBackend/serializers.py - Update ApplicationSerializer
 class ApplicationSerializer(serializers.ModelSerializer):
     status = StatusSerializer(read_only=True)
     job = JobSerializer(read_only=True)
     job_id = serializers.IntegerField(write_only=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    resume = serializers.FileField(required=False)
+    match_score = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Application
@@ -78,10 +81,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "email",
             "residence",
             "cover_letter",
+            "resume",
             "user",
             "job",
             "job_id",
             "status",
+            "match_score",
         ]
 
 

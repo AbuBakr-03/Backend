@@ -32,6 +32,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
 
 
+from .services import ResumeScreeningService
+from django.core.files.storage import default_storage
+import os
+from BackendProject import settings
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
@@ -164,8 +170,31 @@ class ApplicationView(generics.ListCreateAPIView):
             return queryset
 
     def perform_create(self, serializer):
-        status = Status.objects.get(pk=1)
-        serializer.save(status=status)
+        status = Status.objects.get(pk=1)  # Default to 'Pending'
+        resume = self.request.FILES.get("resume")
+
+        # Save application with default status first
+        application = serializer.save(status=status)
+
+        # If resume is uploaded, process it
+        if resume:
+            # Save the resume and get the file path
+            file_path = default_storage.save(f"resumes/{resume.name}", resume)
+            full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+
+            try:
+                # Use the screening service to evaluate the resume
+                screening_service = ResumeScreeningService()
+                result = screening_service.screen_resume(full_path, application.job)
+
+                # Update application with screening results
+                new_status = Status.objects.get(pk=result["status_id"])
+                application.status = new_status
+                application.match_score = result["match_score"]
+                application.save()
+            except Exception as e:
+                print(f"Error in resume screening: {e}")
+                # Keep the default status on error
 
 
 class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):

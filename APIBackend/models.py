@@ -47,14 +47,17 @@ class Status(models.Model):
         return self.title
 
 
+# APIBackend/models.py - Update the Application model
 class Application(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField()
     residence = models.CharField(max_length=255)
     cover_letter = models.TextField(max_length=1000)
+    resume = models.FileField(upload_to="resumes/", null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=None)
     job = models.ForeignKey(Job, on_delete=models.CASCADE, null=None)
     status = models.ForeignKey(Status, on_delete=models.CASCADE, null=None, default=1)
+    match_score = models.FloatField(null=True, blank=True)
 
     class Meta:
         unique_together = ["user", "job"]

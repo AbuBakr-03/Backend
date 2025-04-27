@@ -16,6 +16,8 @@ resend = "*"
 dj-rest-auth = {extras = ["with_social"], version = "*"}
 djangorestframework-simplejwt = "*"
 django-cors-headers = "*"
+nltk = "*"
+pypdf2 = "*"
 
 [dev-packages]
 
