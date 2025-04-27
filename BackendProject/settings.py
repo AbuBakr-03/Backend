@@ -54,6 +54,7 @@ TEMPLATES = [
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
+                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
@@ -122,15 +123,17 @@ REST_FRAMEWORK = {
 DJOSER = {
     "LOGIN_FIELD": "username",
     "USER_ID_FIELD": "username",
-    "PASSWORD_RESET_CONFIRM_URL": "/reset-password/{uid}/{token}",
+    "PASSWORD_RESET_CONFIRM_URL": "reset-password/{uid}/{token}",
     "SEND_PASSWORD_RESET_EMAIL": True,
     "EMAIL": {
-        "password_reset": "djoser.email.PasswordResetEmail",
+        "password_reset": "APIBackend.email.CustomPasswordResetEmail",  # This is a custom class we'll create
     },
     "SERIALIZERS": {
         "current_user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
+    "DOMAIN": "127.0.0.1:5177",
+    "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.resend.com"
@@ -151,5 +154,5 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5174",  # Add your frontend URL here
+    "http://127.0.0.1:5177",  # Add your frontend URL here
 ]
