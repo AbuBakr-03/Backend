@@ -96,15 +96,28 @@ class ResultSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+# APIBackend/serializers.py - Update the InterviewSerializer
+
+
 class InterviewSerializer(serializers.ModelSerializer):
     application = ApplicationSerializer(read_only=True)
     application_id = serializers.IntegerField(write_only=True)
     result = ResultSerializer(read_only=True)
     date = serializers.DateTimeField(required=False, allow_null=True)
+    meeting_link = serializers.CharField(read_only=True)
+    generate_link = serializers.BooleanField(write_only=True, required=False)
 
     class Meta:
         model = Interview
-        fields = ["id", "application", "application_id", "date", "result"]
+        fields = [
+            "id",
+            "application",
+            "application_id",
+            "date",
+            "result",
+            "meeting_link",
+            "generate_link",
+        ]
 
     def validate(self, attrs):
         application_id = attrs.get("application_id")
@@ -138,6 +151,24 @@ class InterviewSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+    def create(self, validated_data):
+        generate_link = validated_data.pop("generate_link", False)
+        interview = super().create(validated_data)
+
+        if generate_link:
+            interview.generate_meeting_link()
+
+        return interview
+
+    def update(self, instance, validated_data):
+        generate_link = validated_data.pop("generate_link", False)
+        interview = super().update(instance, validated_data)
+
+        if generate_link:
+            interview.generate_meeting_link()
+
+        return interview
 
 
 # APIBackend/serializers.py

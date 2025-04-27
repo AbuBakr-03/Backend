@@ -74,13 +74,31 @@ class Result(models.Model):
         return self.title
 
 
+# APIBackend/models.py - Update the Interview model
+
+
 class Interview(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, null=None)
     date = models.DateTimeField(null=True, blank=True)
     result = models.ForeignKey(Result, on_delete=models.CASCADE, null=None, default=1)
+    meeting_link = models.CharField(max_length=255, null=True, blank=True)
+    meeting_id = models.CharField(
+        max_length=50, null=True, blank=True
+    )  # For unique meeting identification
 
     def __str__(self):
         return f"{self.application} : {self.date} : {self.result}"
+
+    def generate_meeting_link(self):
+        """Generate a unique meeting link if one doesn't exist"""
+        if not self.meeting_id:
+            # Generate a unique ID for the meeting
+            import uuid
+
+            self.meeting_id = str(uuid.uuid4())[:8]
+            self.meeting_link = f"http://127.0.0.1:5180/meeting/{self.meeting_id}"
+            self.save()
+        return self.meeting_link
 
 
 class RecruiterRequest(models.Model):

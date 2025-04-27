@@ -37,6 +37,9 @@ from django.core.files.storage import default_storage
 import os
 from BackendProject import settings
 
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -188,10 +191,22 @@ class ApplicationView(generics.ListCreateAPIView):
                 result = screening_service.screen_resume(full_path, application.job)
 
                 # Update application with screening results
-                new_status = Status.objects.get(pk=result["status_id"])
+                new_status_id = result["status_id"]
+                new_status = Status.objects.get(pk=new_status_id)
                 application.status = new_status
                 application.match_score = result["match_score"]
                 application.save()
+
+                if new_status_id == 2:
+                    default_result = Result.objects.get(
+                        pk=1
+                    )  # Get default result (usually 'Pending')
+                    Interview.objects.create(
+                        application=application,
+                        date=None,  # Date can remain empty for now
+                        result=default_result,
+                    )
+
             except Exception as e:
                 print(f"Error in resume screening: {e}")
                 # Keep the default status on error
@@ -226,7 +241,25 @@ class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         application = self.get_object()
         if user.is_staff or application.job.recruiter == user:
-            serializer.save()
+            # Get previous status
+            previous_status_id = application.status.id
+
+            # Save the updated application
+            updated_application = serializer.save()
+
+            # If status changed to 'Approved for Interview' (ID 2), create an interview
+            current_status_id = updated_application.status.id
+            if current_status_id == 2 and previous_status_id != 2:
+                # Check if an interview already exists
+                if not Interview.objects.filter(
+                    application=updated_application
+                ).exists():
+                    default_result = Result.objects.get(pk=1)  # Get default result
+                    Interview.objects.create(
+                        application=updated_application,
+                        date=None,  # Date can remain empty for now
+                        result=default_result,
+                    )
 
     def perform_destroy(self, instance):
         user = self.request.user
@@ -299,6 +332,33 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         if user.is_staff or instance.application.job.recruiter == user:
             instance.delete()
+
+
+# Remove the @action methods from both InterviewView and SingleInterviewView
+
+
+# Add this new view
+class GenerateMeetingLinkView(APIView):
+    permission_classes = [isRecruiter]
+
+    def post(self, request, pk=None):
+        try:
+            interview = Interview.objects.get(pk=pk)
+            # Check permission
+            user = request.user
+            if not (user.is_staff or interview.application.job.recruiter == user):
+                return Response(
+                    {"error": "You do not have permission to modify this interview."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Generate meeting link
+            meeting_link = interview.generate_meeting_link()
+            return Response({"meeting_link": meeting_link})
+        except Interview.DoesNotExist:
+            return Response(
+                {"error": "Interview not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class Recruiter(APIView):

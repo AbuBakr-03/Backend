@@ -16,6 +16,11 @@ urlpatterns = [
     path("result/<int:pk>/", views.SingleResultView.as_view()),
     path("interview/", views.InterviewView.as_view()),
     path("interview/<int:pk>/", views.SingleInterviewView.as_view()),
+    path(
+        "interview/<int:pk>/generate-meeting/",
+        views.GenerateMeetingLinkView.as_view(),
+        name="generate-meeting",
+    ),
     path("recruiters/", views.RecruiterRequestView.as_view()),
     path("recruiters/<int:pk>/", views.SingleRecruiterRequestView.as_view()),
     path("groups/recruiters/", views.Recruiter.as_view()),
