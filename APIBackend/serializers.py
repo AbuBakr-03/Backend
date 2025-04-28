@@ -99,6 +99,9 @@ class ResultSerializer(serializers.ModelSerializer):
 # APIBackend/serializers.py - Update the InterviewSerializer
 
 
+# APIBackend/serializers.py - Update the InterviewSerializer
+
+
 class InterviewSerializer(serializers.ModelSerializer):
     application = ApplicationSerializer(read_only=True)
     application_id = serializers.IntegerField(write_only=True)
@@ -106,6 +109,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     date = serializers.DateTimeField(required=False, allow_null=True)
     meeting_link = serializers.CharField(read_only=True)
     generate_link = serializers.BooleanField(write_only=True, required=False)
+    analysis_data = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Interview
@@ -116,59 +120,10 @@ class InterviewSerializer(serializers.ModelSerializer):
             "date",
             "result",
             "meeting_link",
+            "meeting_id",
             "generate_link",
+            "analysis_data",
         ]
-
-    def validate(self, attrs):
-        application_id = attrs.get("application_id")
-        date = attrs.get("date")
-
-        # Only validate if date is provided
-        if date is not None and application_id is not None:
-            try:
-                application = Application.objects.select_related("job__recruiter").get(
-                    id=application_id
-                )
-            except Application.DoesNotExist:
-                raise serializers.ValidationError("Invalid application ID.")
-
-            recruiter = application.job.recruiter
-            if recruiter is None:
-                raise serializers.ValidationError("This job has no assigned recruiter.")
-
-            # Look for conflicting interviews with same recruiter and date
-            existing = Interview.objects.filter(
-                application__job__recruiter=recruiter, date=date
-            )
-
-            # Exclude the current instance if this is an update
-            if self.instance:
-                existing = existing.exclude(pk=self.instance.pk)
-
-            if existing.exists():
-                raise serializers.ValidationError(
-                    f"The recruiter already has an interview scheduled at {date}."
-                )
-
-        return attrs
-
-    def create(self, validated_data):
-        generate_link = validated_data.pop("generate_link", False)
-        interview = super().create(validated_data)
-
-        if generate_link:
-            interview.generate_meeting_link()
-
-        return interview
-
-    def update(self, instance, validated_data):
-        generate_link = validated_data.pop("generate_link", False)
-        interview = super().update(instance, validated_data)
-
-        if generate_link:
-            interview.generate_meeting_link()
-
-        return interview
 
 
 # APIBackend/serializers.py

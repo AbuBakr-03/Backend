@@ -77,6 +77,9 @@ class Result(models.Model):
 # APIBackend/models.py - Update the Interview model
 
 
+# APIBackend/models.py - Update the Interview model
+
+
 class Interview(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, null=None)
     date = models.DateTimeField(null=True, blank=True)
@@ -85,6 +88,7 @@ class Interview(models.Model):
     meeting_id = models.CharField(
         max_length=50, null=True, blank=True
     )  # For unique meeting identification
+    analysis_data = models.JSONField(null=True, blank=True)  # Store analysis results
 
     def __str__(self):
         return f"{self.application} : {self.date} : {self.result}"
@@ -96,9 +100,27 @@ class Interview(models.Model):
             import uuid
 
             self.meeting_id = str(uuid.uuid4())[:8]
-            self.meeting_link = f"http://127.0.0.1:5180/meeting/{self.meeting_id}"
+            self.meeting_link = f"http://127.0.0.1:5184/meeting/{self.meeting_id}"
             self.save()
         return self.meeting_link
+
+    def update_result_from_analysis(self, analysis_data):
+        """Update the interview result based on analysis data"""
+        # Store the analysis data
+        self.analysis_data = analysis_data
+
+        # Update the result if confidence meets thresholds
+        confidence = analysis_data.get("confidence", 0)
+
+        if confidence >= 65:
+            # High confidence - candidate gets hired
+            self.result_id = 2  # Assuming 2 is the ID for "Hired/Accepted"
+        elif confidence <= 30:
+            # Low confidence - candidate gets rejected
+            self.result_id = 3  # Assuming 3 is the ID for "Rejected"
+        # Between 30-65: Keep as pending (result_id=1) for human review
+
+        self.save()
 
 
 class RecruiterRequest(models.Model):

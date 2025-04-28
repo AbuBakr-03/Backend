@@ -20,6 +20,7 @@ ALLOWED_HOSTS = []
 # BackendProject/settings.py - Add to the bottom of the file
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MODELS_ROOT = os.path.join(BASE_DIR, "APIBackend", "AImodels")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -135,7 +136,7 @@ DJOSER = {
         "current_user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5180",
+    "DOMAIN": "127.0.0.1:5184",
     "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -157,5 +158,5 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5180",  # Add your frontend URL here
+    "http://127.0.0.1:5184",  # Add your frontend URL here
 ]

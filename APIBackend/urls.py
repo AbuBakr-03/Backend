@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_interview
 
 urlpatterns = [
     path("department/", views.DepartmentView.as_view()),
@@ -20,6 +21,12 @@ urlpatterns = [
         "interview/<int:pk>/generate-meeting/",
         views.GenerateMeetingLinkView.as_view(),
         name="generate-meeting",
+    ),
+    # New endpoint for interview recording analysis
+    path(
+        "interview/<int:pk>/analyze-recording/",
+        views_interview.InterviewRecordingView.as_view(),
+        name="analyze-recording",
     ),
     path("recruiters/", views.RecruiterRequestView.as_view()),
     path("recruiters/<int:pk>/", views.SingleRecruiterRequestView.as_view()),
