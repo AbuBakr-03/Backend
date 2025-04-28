@@ -7,30 +7,22 @@ from django.shortcuts import get_object_or_404
 from .models import Interview, Result
 from .interview_analysis import InterviewAnalysisService
 import os
-import tempfile
 import logging
-import base64
-import uuid
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 
 class InterviewRecordingView(APIView):
     """
-    API endpoint to handle candidate interview recordings
+    API endpoint to handle interview video analysis
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk=None):
         """
-        Process an interview recording and update the interview result
-
-        Expected request format:
-        {
-            "recording_data": "base64_encoded_webm_data",
-            "interview_id": 123
-        }
+        Process an interview video and update the interview result
         """
         try:
             # Get the interview object
@@ -39,7 +31,7 @@ class InterviewRecordingView(APIView):
                 interview_id = pk
 
             logger.info(
-                f"Processing interview recording for interview_id: {interview_id}"
+                f"Processing interview analysis for interview_id: {interview_id}"
             )
 
             interview = get_object_or_404(Interview, pk=interview_id)
@@ -55,56 +47,22 @@ class InterviewRecordingView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            # Get recording data
-            recording_data = request.data.get("recording_data")
-            if not recording_data:
-                logger.warning(
-                    f"No recording data provided for interview {interview_id}."
-                )
+            # Check if video exists
+            if not interview.interview_video:
+                logger.warning(f"No video file available for interview {interview_id}.")
                 return Response(
-                    {"error": "No recording data provided."},
+                    {"error": "No video file found for this interview."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Decode base64 data
-            try:
-                # Remove potential data URL prefix
-                if "base64," in recording_data:
-                    recording_data = recording_data.split("base64,")[1]
-
-                logger.info("Decoding base64 recording data.")
-                decoded_data = base64.b64decode(recording_data)
-                logger.info("Base64 data decoded successfully.")
-
-            except Exception as e:
-                logger.error(f"Failed to decode base64 data: {e}")
-                return Response(
-                    {"error": "Invalid recording data format."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Create a temporary file for the recording
-            try:
-                with tempfile.NamedTemporaryFile(
-                    suffix=".webm", delete=False
-                ) as temp_file:
-                    temp_file.write(decoded_data)
-                    temp_file_path = temp_file.name
-
-                logger.info(f"Temporary file created for recording: {temp_file_path}")
-
-            except Exception as e:
-                logger.error(f"Error creating temporary file for recording: {e}")
-                return Response(
-                    {"error": "Failed to create temporary file for recording."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+            # Get the full path to the video file
+            video_path = interview.interview_video.path
 
             try:
-                # Process the recording
-                logger.info("Starting the analysis of the recording.")
+                # Process the video
+                logger.info("Starting the analysis of the video.")
                 analysis_service = InterviewAnalysisService()
-                analysis_result = analysis_service.process_recording(temp_file_path)
+                analysis_result = analysis_service.process_recording(video_path)
 
                 # Update the interview with the analysis results
                 logger.info(
@@ -125,19 +83,11 @@ class InterviewRecordingView(APIView):
                 )
 
             except Exception as e:
-                logger.error(f"Error processing recording: {e}")
+                logger.error(f"Error processing video: {e}")
                 return Response(
-                    {"error": f"Failed to process recording: {str(e)}"},
+                    {"error": f"Failed to process video: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-
-            finally:
-                # Clean up the temporary file
-                if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                    logger.info(
-                        f"Temporary file {temp_file_path} removed after processing."
-                    )
 
         except Exception as e:
             logger.error(f"Unexpected error in InterviewRecordingView: {e}")

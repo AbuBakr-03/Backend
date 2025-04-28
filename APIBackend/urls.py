@@ -1,3 +1,5 @@
+# Update to APIBackend/urls.py
+
 from django.urls import path
 from . import views
 from . import views_interview
@@ -17,11 +19,6 @@ urlpatterns = [
     path("result/<int:pk>/", views.SingleResultView.as_view()),
     path("interview/", views.InterviewView.as_view()),
     path("interview/<int:pk>/", views.SingleInterviewView.as_view()),
-    path(
-        "interview/<int:pk>/generate-meeting/",
-        views.GenerateMeetingLinkView.as_view(),
-        name="generate-meeting",
-    ),
     # New endpoint for interview recording analysis
     path(
         "interview/<int:pk>/analyze-recording/",

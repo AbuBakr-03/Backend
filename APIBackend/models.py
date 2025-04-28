@@ -36,7 +36,7 @@ class Job(models.Model):
         unique_together = ["company", "department"]
 
     def __str__(self):
-        return f"{self.title} : {self.location} : {self.end_date} : {self.department} : {self.company} : {self.recruiter}"
+        return f"{self.title} : {self.end_date} : {self.department} : {self.company} : {self.recruiter}"
 
 
 class Status(models.Model):
@@ -63,7 +63,7 @@ class Application(models.Model):
         unique_together = ["user", "job"]
 
     def __str__(self):
-        return f"{self.name} : {self.email} : {self.residence} : {self.user} : {self.job} : {self.status}"
+        return f"{self.name} : {self.user} : {self.job} : {self.status} : {self.match_score}"
 
 
 class Result(models.Model):
@@ -74,51 +74,30 @@ class Result(models.Model):
         return self.title
 
 
-# APIBackend/models.py - Update the Interview model
-
-
-# APIBackend/models.py - Update the Interview model
-
-
 class Interview(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, null=None)
     date = models.DateTimeField(null=True, blank=True)
     result = models.ForeignKey(Result, on_delete=models.CASCADE, null=None, default=1)
-    meeting_link = models.CharField(max_length=255, null=True, blank=True)
-    meeting_id = models.CharField(
-        max_length=50, null=True, blank=True
-    )  # For unique meeting identification
-    analysis_data = models.JSONField(null=True, blank=True)  # Store analysis results
+    external_meeting_link = models.CharField(max_length=255, null=True, blank=True)
+    interview_video = models.FileField(upload_to="interviews/", null=True, blank=True)
+    analysis_data = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("application",)
 
     def __str__(self):
         return f"{self.application} : {self.date} : {self.result}"
-
-    def generate_meeting_link(self):
-        """Generate a unique meeting link if one doesn't exist"""
-        if not self.meeting_id:
-            # Generate a unique ID for the meeting
-            import uuid
-
-            self.meeting_id = str(uuid.uuid4())[:8]
-            self.meeting_link = f"http://127.0.0.1:5184/meeting/{self.meeting_id}"
-            self.save()
-        return self.meeting_link
 
     def update_result_from_analysis(self, analysis_data):
         """Update the interview result based on analysis data"""
         # Store the analysis data
         self.analysis_data = analysis_data
-
         # Update the result if confidence meets thresholds
-        confidence = analysis_data.get("confidence", 0)
-
-        if confidence >= 65:
-            # High confidence - candidate gets hired
+        confidence = analysis_data.get("confidence", 0)  # 0 if no data
+        if confidence >= 50:
             self.result_id = 2  # Assuming 2 is the ID for "Hired/Accepted"
-        elif confidence <= 30:
-            # Low confidence - candidate gets rejected
+        else:
             self.result_id = 3  # Assuming 3 is the ID for "Rejected"
-        # Between 30-65: Keep as pending (result_id=1) for human review
 
         self.save()
 

@@ -96,19 +96,14 @@ class ResultSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-# APIBackend/serializers.py - Update the InterviewSerializer
-
-
-# APIBackend/serializers.py - Update the InterviewSerializer
-
 
 class InterviewSerializer(serializers.ModelSerializer):
     application = ApplicationSerializer(read_only=True)
     application_id = serializers.IntegerField(write_only=True)
     result = ResultSerializer(read_only=True)
     date = serializers.DateTimeField(required=False, allow_null=True)
-    meeting_link = serializers.CharField(read_only=True)
-    generate_link = serializers.BooleanField(write_only=True, required=False)
+    external_meeting_link = serializers.CharField(required=False, allow_null=True)
+    interview_video = serializers.FileField(required=False, allow_null=True)
     analysis_data = serializers.JSONField(read_only=True)
 
     class Meta:
@@ -119,14 +114,12 @@ class InterviewSerializer(serializers.ModelSerializer):
             "application_id",
             "date",
             "result",
-            "meeting_link",
-            "meeting_id",
-            "generate_link",
+            "external_meeting_link",
+            "interview_video",
             "analysis_data",
         ]
 
 
-# APIBackend/serializers.py
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 

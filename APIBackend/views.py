@@ -40,12 +40,16 @@ from BackendProject import settings
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.core.files.storage import default_storage
+import os
+from .interview_analysis import InterviewAnalysisService
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-# Create your views here.
 class isRecruiter(BasePermission):
     def has_permission(self, request, view):
         return request.user and (
@@ -130,10 +134,6 @@ class SingleRecruiterRequestView(generics.RetrieveUpdateDestroyAPIView):
 class JobView(generics.ListCreateAPIView):
     queryset = Job.objects.select_related("department", "company").all().order_by("id")
     serializer_class = JobSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
-    filterset_fields = ["location", "department__title", "company__name"]
-    search_fields = ["title"]
-    ordering_fields = ["end_date"]
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -175,10 +175,8 @@ class ApplicationView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         status = Status.objects.get(pk=1)  # Default to 'Pending'
         resume = self.request.FILES.get("resume")
-
         # Save application with default status first
         application = serializer.save(status=status)
-
         # If resume is uploaded, process it
         if resume:
             # Save the resume and get the file path
@@ -188,11 +186,13 @@ class ApplicationView(generics.ListCreateAPIView):
             try:
                 # Use the screening service to evaluate the resume
                 screening_service = ResumeScreeningService()
-                result = screening_service.screen_resume(full_path, application.job)
+                result = screening_service.screen_resume(
+                    full_path, application.job
+                )  # returns dict with status id and match score
 
                 # Update application with screening results
-                new_status_id = result["status_id"]
-                new_status = Status.objects.get(pk=new_status_id)
+                new_status_id = result["status_id"] # could be 1 or 2 or 3
+                new_status = Status.objects.get(pk=new_status_id) #get status with id
                 application.status = new_status
                 application.match_score = result["match_score"]
                 application.save()
@@ -209,7 +209,6 @@ class ApplicationView(generics.ListCreateAPIView):
 
             except Exception as e:
                 print(f"Error in resume screening: {e}")
-                # Keep the default status on error
 
 
 class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):
@@ -270,6 +269,7 @@ class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):
 class InterviewView(generics.ListCreateAPIView):
     queryset = Interview.objects.select_related("application", "result").all()
     serializer_class = InterviewSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -294,12 +294,44 @@ class InterviewView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         result = Result.objects.get(pk=1)
-        serializer.save(result=result)
+        interview = serializer.save(result=result)
+
+        # Check if a video file was uploaded
+        if "interview_video" in self.request.FILES:
+            interview_video = self.request.FILES["interview_video"]
+            if interview_video:
+                self.process_interview_video(interview, interview_video)
+
+    def process_interview_video(self, interview, video_file):
+        try:
+            # Save the video file directly to the model
+            interview.interview_video = video_file
+            interview.save()
+
+            # Get the full path to the saved file
+            full_path = interview.interview_video.path
+
+            # Now process the video for analysis
+            try:
+                # Analyze the video using the interview analysis service
+                analysis_service = InterviewAnalysisService()
+                analysis_result = analysis_service.process_recording(full_path)
+
+                # Update the interview with the analysis results
+                interview.update_result_from_analysis(analysis_result)
+
+            except Exception as e:
+                # Log the error but don't raise it
+                print(f"Error in video analysis: {e}")
+
+        except Exception as e:
+            print(f"Error saving interview video: {e}")
 
 
 class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Interview.objects.select_related("application", "result").all()
     serializer_class = InterviewSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -325,40 +357,46 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         user = self.request.user
         interview = self.get_object()
+
         if user.is_staff or interview.application.job.recruiter == user:
-            serializer.save()
+            # Save the updated interview first
+            updated_interview = serializer.save()
+
+            # Then check if a new video was uploaded
+            if "interview_video" in self.request.FILES:
+                interview_video = self.request.FILES["interview_video"]
+                if interview_video:
+                    self.process_interview_video(updated_interview, interview_video)
+
+    def process_interview_video(self, interview, video_file):
+        try:
+            # Save the video file directly to the model
+            interview.interview_video = video_file
+            interview.save()
+
+            # Get the full path to the saved file
+            full_path = interview.interview_video.path
+
+            # Now process the video for analysis
+            try:
+                # Analyze the video using the interview analysis service
+                analysis_service = InterviewAnalysisService()
+                analysis_result = analysis_service.process_recording(full_path)
+
+                # Update the interview with the analysis results
+                interview.update_result_from_analysis(analysis_result)
+
+            except Exception as e:
+                # Log the error but don't raise it
+                print(f"Error in video analysis: {e}")
+
+        except Exception as e:
+            print(f"Error saving interview video: {e}")
 
     def perform_destroy(self, instance):
         user = self.request.user
         if user.is_staff or instance.application.job.recruiter == user:
             instance.delete()
-
-
-# Remove the @action methods from both InterviewView and SingleInterviewView
-
-
-# Add this new view
-class GenerateMeetingLinkView(APIView):
-    permission_classes = [isRecruiter]
-
-    def post(self, request, pk=None):
-        try:
-            interview = Interview.objects.get(pk=pk)
-            # Check permission
-            user = request.user
-            if not (user.is_staff or interview.application.job.recruiter == user):
-                return Response(
-                    {"error": "You do not have permission to modify this interview."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            # Generate meeting link
-            meeting_link = interview.generate_meeting_link()
-            return Response({"meeting_link": meeting_link})
-        except Interview.DoesNotExist:
-            return Response(
-                {"error": "Interview not found."}, status=status.HTTP_404_NOT_FOUND
-            )
 
 
 class Recruiter(APIView):
