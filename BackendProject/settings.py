@@ -11,6 +11,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-mr1k68@2w=76g-ug#&tl5d8e+mbydn1ob%zpa6%m4%eflhvc+3"
+GEMINI_API_KEY = os.environ.get(
+    "GEMINI_API_KEY", ""
+)  # Get from environment or set directly here
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -136,7 +139,7 @@ DJOSER = {
         "current_user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5185",
+    "DOMAIN": "127.0.0.1:5187",
     "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -158,5 +161,5 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5185",  # Add your frontend URL here
+    "http://127.0.0.1:5187",  # Add your frontend URL here
 ]

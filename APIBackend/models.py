@@ -74,6 +74,7 @@ class Result(models.Model):
         return self.title
 
 
+# APIBackend/models.py - Update the Interview model
 class Interview(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, null=None)
     date = models.DateTimeField(null=True, blank=True)
@@ -81,17 +82,17 @@ class Interview(models.Model):
     external_meeting_link = models.CharField(max_length=255, null=True, blank=True)
     interview_video = models.FileField(upload_to="interviews/", null=True, blank=True)
     analysis_data = models.JSONField(null=True, blank=True)
+    interview_questions = models.JSONField(null=True, blank=True)  # Add this field
 
     class Meta:
         unique_together = ("application",)
 
-    def __str__(self):
-        return f"{self.application} : {self.date} : {self.result}"
+    # Add this method to your Interview model in models.py if it's missing
 
     def update_result_from_analysis(self, analysis_data):
-        """Update the interview result based on analysis data"""
-        # Store the analysis data
+
         self.analysis_data = analysis_data
+
         # Update the result if confidence meets thresholds
         confidence = analysis_data.get("confidence", 0)  # 0 if no data
         if confidence >= 50:
@@ -100,6 +101,9 @@ class Interview(models.Model):
             self.result_id = 3  # Assuming 3 is the ID for "Rejected"
 
         self.save()
+
+    def __str__(self):
+        return f"{self.application} : {self.date} : {self.result}"
 
 
 class RecruiterRequest(models.Model):

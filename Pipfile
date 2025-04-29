@@ -20,6 +20,7 @@ nltk = "*"
 pypdf2 = "*"
 imageio = {extras = ["ffmpeg"], version = "*"}
 soundfile = "*"
+google-generativeai = "*"
 
 [dev-packages]
 

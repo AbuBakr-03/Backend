@@ -96,7 +96,6 @@ class ResultSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
 class InterviewSerializer(serializers.ModelSerializer):
     application = ApplicationSerializer(read_only=True)
     application_id = serializers.IntegerField(write_only=True)
@@ -105,6 +104,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     external_meeting_link = serializers.CharField(required=False, allow_null=True)
     interview_video = serializers.FileField(required=False, allow_null=True)
     analysis_data = serializers.JSONField(read_only=True)
+    interview_questions = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Interview
@@ -117,8 +117,8 @@ class InterviewSerializer(serializers.ModelSerializer):
             "external_meeting_link",
             "interview_video",
             "analysis_data",
+            "interview_questions",
         ]
-
 
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer

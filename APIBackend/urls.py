@@ -3,6 +3,7 @@
 from django.urls import path
 from . import views
 from . import views_interview
+from . import views_questions
 
 urlpatterns = [
     path("department/", views.DepartmentView.as_view()),
@@ -29,4 +30,9 @@ urlpatterns = [
     path("recruiters/<int:pk>/", views.SingleRecruiterRequestView.as_view()),
     path("groups/recruiters/", views.Recruiter.as_view()),
     path("groups/recruiters/<int:pk>/", views.SingleRecruiter.as_view()),
+    path(
+        "interview/<int:pk>/generate-questions/",
+        views_questions.InterviewQuestionsView.as_view(),
+        name="generate-questions",
+    ),
 ]
