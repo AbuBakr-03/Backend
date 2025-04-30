@@ -140,3 +140,68 @@ class ResumeScreeningService:
             "status_id": status_id,
             "matched_words": matched_words,
         }
+
+# Add to APIBackend/services.py
+
+
+class CandidateEvaluationService:
+    """Service for managing candidate evaluations"""
+
+    @staticmethod
+    def process_interview_result(interview):
+        """
+        Process an interview result and create a predicted candidate if necessary
+        Returns a predicted candidate if created, otherwise None
+        """
+        from .models import PredictedCandidate, EvaluationStatus
+
+        # Only process interviews with "pass" result (ID 2)
+        if interview.result.id != 2:
+            return None
+
+        # Check if a predicted candidate already exists
+        try:
+            predicted_candidate = interview.predicted_candidate
+            return predicted_candidate  # Already exists
+        except PredictedCandidate.DoesNotExist:
+            # Create new predicted candidate with pending status
+            status = EvaluationStatus.objects.get(id=1)  # 1 = Pending
+            predicted_candidate = PredictedCandidate.objects.create(
+                interview=interview, status=status
+            )
+            return predicted_candidate
+
+    @staticmethod
+    def evaluate_candidate(predicted_candidate, evaluation_data):
+        """
+        Evaluate a predicted candidate based on form responses
+        Returns the updated candidate
+        """
+        # Calculate average score
+        questions = evaluation_data.get("questions", [])
+        if not questions:
+            return predicted_candidate
+
+        total_score = 0
+        question_count = len(questions)
+
+        for question in questions:
+            # Each question has a score from 1-5
+            score = question.get("score", 0)
+            total_score += score
+
+        # Calculate average (0-5 scale)
+        average_score = total_score / question_count if question_count > 0 else 0
+
+        # Determine status based on score (>= 3.5 out of 5 is a pass)
+        status_id = 2 if average_score >= 3.5 else 3  # 2 = Hired, 3 = Rejected
+
+        # Update the candidate
+        from .models import EvaluationStatus
+
+        predicted_candidate.evaluation_data = evaluation_data
+        predicted_candidate.evaluation_score = average_score
+        predicted_candidate.status = EvaluationStatus.objects.get(id=status_id)
+        predicted_candidate.save()
+
+        return predicted_candidate

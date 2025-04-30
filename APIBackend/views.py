@@ -15,6 +15,7 @@ from .serializers import (
     ResultSerializer,
     InterviewSerializer,
     RecruiterRequestSerializer,
+    PredictedCandidateSerializer,
 )
 from .models import (
     Department,
@@ -25,6 +26,7 @@ from .models import (
     Result,
     Interview,
     RecruiterRequest,
+    PredictedCandidate,
 )
 
 
@@ -44,6 +46,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.files.storage import default_storage
 import os
 from .interview_analysis import InterviewAnalysisService
+
+from .services import CandidateEvaluationService
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -191,8 +195,8 @@ class ApplicationView(generics.ListCreateAPIView):
                 )  # returns dict with status id and match score
 
                 # Update application with screening results
-                new_status_id = result["status_id"] # could be 1 or 2 or 3
-                new_status = Status.objects.get(pk=new_status_id) #get status with id
+                new_status_id = result["status_id"]  # could be 1 or 2 or 3
+                new_status = Status.objects.get(pk=new_status_id)  # get status with id
                 application.status = new_status
                 application.match_score = result["match_score"]
                 application.save()
@@ -397,6 +401,120 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         if user.is_staff or instance.application.job.recruiter == user:
             instance.delete()
+
+
+# Add to APIBackend/views.py
+
+
+class PredictedCandidateView(generics.ListCreateAPIView):
+    queryset = PredictedCandidate.objects.select_related("interview", "status").all()
+    serializer_class = PredictedCandidateSerializer
+    permission_classes = [isRecruiter]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).all()
+        elif user.groups.filter(name="Recruiter").exists():
+            return PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).filter(interview__application__job__recruiter=user)
+        return PredictedCandidate.objects.none()
+
+
+class SinglePredictedCandidateView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = PredictedCandidate.objects.select_related("interview", "status").all()
+    serializer_class = PredictedCandidateSerializer
+    permission_classes = [isRecruiter]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).all()
+        elif user.groups.filter(name="Recruiter").exists():
+            return PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).filter(interview__application__job__recruiter=user)
+        return PredictedCandidate.objects.none()
+
+
+class EvaluationFormView(APIView):
+    """API endpoint to handle candidate evaluation form submissions"""
+
+    permission_classes = [isRecruiter]
+
+    def post(self, request, pk=None):
+        try:
+            # Get the predicted candidate
+            candidate = get_object_or_404(PredictedCandidate, pk=pk)
+
+            # Check permission - only recruiter of this job or admin can evaluate
+            user = request.user
+            if not (
+                user.is_staff or candidate.interview.application.job.recruiter == user
+            ):
+                return Response(
+                    {"error": "You do not have permission to evaluate this candidate."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Get the evaluation form data
+            evaluation_data = request.data.get("evaluation_data")
+            if not evaluation_data:
+                return Response(
+                    {"error": "No evaluation data provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Calculate average score
+            questions = evaluation_data.get("questions", [])
+            if not questions:
+                return Response(
+                    {"error": "No questions data provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            total_score = 0
+            question_count = len(questions)
+
+            for question in questions:
+                # Assume each question has a 'score' field with value 1-5
+                score = question.get("score", 0)
+                total_score += score
+
+            # Calculate average (0-5 scale)
+            average_score = total_score / question_count if question_count > 0 else 0
+
+            # Determine status based on score
+            # If average is >= 3.5 (70%), mark as Hired/Passed
+            status_id = 2 if average_score >= 3.5 else 3  # 2 = Hired, 3 = Rejected
+
+            # Update the candidate
+            candidate.evaluation_data = evaluation_data
+            candidate.evaluation_score = average_score
+            candidate.status_id = status_id
+            candidate.save()
+
+            service = CandidateEvaluationService()
+            updated_candidate = service.evaluate_candidate(candidate, evaluation_data)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Evaluation submitted successfully",
+                    "status": updated_candidate.status.title,
+                    "average_score": updated_candidate.evaluation_score,
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to submit evaluation: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class Recruiter(APIView):

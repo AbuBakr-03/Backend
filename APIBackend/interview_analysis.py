@@ -13,14 +13,15 @@ from sklearn.preprocessing import StandardScaler
 from collections import Counter
 import logging
 from django.conf import settings
-import gc  
+import gc
+
 logger = logging.getLogger(__name__)
 
+
 class InterviewAnalysisService:
-    
 
     def __init__(self, model_path=None, scaler_path=None, encoder_path=None):
-        
+
         self.base_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "AImodels"
         )
@@ -41,13 +42,13 @@ class InterviewAnalysisService:
 
         # Mapping for emotions to categories
         self.combined_mapping = {
-            "angry": "Fear",  
-            "disgust": "Disgust",  
+            "angry": "Fear",
+            "disgust": "Disgust",
             "fear": "Fear",
             "happy": "Happy",
             "neutral": "Neutral",
             "sad": "Sad",
-            "surprise": "Happy",  
+            "surprise": "Happy",
         }
 
         # Emotion weights for confidence scoring
@@ -62,10 +63,8 @@ class InterviewAnalysisService:
         }
 
         # Memory optimization settings
-        self.chunk_duration = 5 
-        self.max_chunks = (
-            30  
-        )
+        self.chunk_duration = 5
+        self.max_chunks = 30
 
     def load_models(self):
         """Lazy-load models when needed"""
@@ -322,8 +321,8 @@ class InterviewAnalysisService:
         Returns result ID (1 = pending, 2 = approved/hired, 3 = rejected)
         """
         # Threshold values can be adjusted
-        if confidence_score >= 50:
+        if confidence_score >= 39:
             return 2  # Approved/Hired
 
         else:
-            return 3  # Keep as pending for human review
+            return 3

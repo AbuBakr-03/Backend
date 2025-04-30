@@ -70,6 +70,13 @@ class InterviewRecordingView(APIView):
                 )
                 interview.update_result_from_analysis(analysis_result)
 
+                if interview.result.id == 2:
+                    from .models import PredictedCandidate
+
+                    PredictedCandidate.objects.get_or_create(
+                        interview=interview, defaults={"status_id": 1}
+                    )
+
                 # Return the analysis results
                 return Response(
                     {

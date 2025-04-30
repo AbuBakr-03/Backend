@@ -35,4 +35,14 @@ urlpatterns = [
         views_questions.InterviewQuestionsView.as_view(),
         name="generate-questions",
     ),
+    # Add to APIBackend/urls.py
+    # PredictedCandidate URLs
+    path("predicted-candidates/", views.PredictedCandidateView.as_view()),
+    path(
+        "predicted-candidates/<int:pk>/", views.SinglePredictedCandidateView.as_view()
+    ),
+    path(
+        "predicted-candidates/<int:pk>/evaluate/",
+        views.EvaluationFormView.as_view(),
+    ),
 ]

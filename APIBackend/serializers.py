@@ -9,6 +9,8 @@ from .models import (
     Status,
     Application,
     RecruiterRequest,
+    EvaluationStatus,
+    PredictedCandidate,
 )
 
 
@@ -119,6 +121,27 @@ class InterviewSerializer(serializers.ModelSerializer):
             "analysis_data",
             "interview_questions",
         ]
+
+
+# Add to APIBackend/serializers.py
+
+
+class EvaluationStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EvaluationStatus
+        fields = "__all__"
+
+
+# Updated APIBackend/serializers.py - PredictedCandidateSerializer without timestamps
+
+
+class PredictedCandidateSerializer(serializers.ModelSerializer):
+    interview = InterviewSerializer(read_only=True)
+    status = EvaluationStatusSerializer(read_only=True)
+
+    class Meta:
+        model = PredictedCandidate
+        fields = ["id", "interview", "status", "evaluation_score", "evaluation_data"]
 
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer

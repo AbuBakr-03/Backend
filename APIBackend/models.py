@@ -89,21 +89,58 @@ class Interview(models.Model):
 
     # Add this method to your Interview model in models.py if it's missing
 
-    def update_result_from_analysis(self, analysis_data):
+    # Update in APIBackend/models.py - Interview class
 
+    def update_result_from_analysis(self, analysis_data):
         self.analysis_data = analysis_data
 
         # Update the result if confidence meets thresholds
         confidence = analysis_data.get("confidence", 0)  # 0 if no data
-        if confidence >= 50:
+        old_result_id = self.result_id
+
+        if confidence >= 39:
             self.result_id = 2  # Assuming 2 is the ID for "Hired/Accepted"
         else:
             self.result_id = 3  # Assuming 3 is the ID for "Rejected"
 
         self.save()
 
+        # Create PredictedCandidate if result changed to "pass"
+        if self.result_id == 2 and old_result_id != 2:
+            from .models import PredictedCandidate, EvaluationStatus
+
+            # Check if a PredictedCandidate already exists
+            if not hasattr(self, "predicted_candidate"):
+                # Create with default status (1 = Pending)
+                default_status = EvaluationStatus.objects.get(id=1)
+                PredictedCandidate.objects.create(interview=self, status=default_status)
+
+
+class EvaluationStatus(models.Model):
+    title = models.CharField(max_length=255)
+    slug = models.SlugField()
+
     def __str__(self):
-        return f"{self.application} : {self.date} : {self.result}"
+        return self.title
+
+
+# Updated APIBackend/models.py - PredictedCandidate model without timestamps
+
+
+class PredictedCandidate(models.Model):
+    interview = models.OneToOneField(
+        Interview, on_delete=models.CASCADE, related_name="predicted_candidate"
+    )
+    status = models.ForeignKey(
+        EvaluationStatus, on_delete=models.CASCADE, default=1
+    )  # Default to "Pending"
+    evaluation_score = models.FloatField(null=True, blank=True)
+    evaluation_data = models.JSONField(
+        null=True, blank=True
+    )  # To store evaluation form responses
+
+    def __str__(self):
+        return f"{self.interview.application.name} - {self.status}"
 
 
 class RecruiterRequest(models.Model):
