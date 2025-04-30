@@ -19,26 +19,31 @@ logger = logging.getLogger(__name__)
 
 
 class InterviewAnalysisService:
+    """Service for analyzing interview recordings with both audio and facial emotion recognition."""
 
-    def __init__(self, model_path=None, scaler_path=None, encoder_path=None):
+    def __init__(self):
+        # Get the base path to AImodels directory using Django settings
+        self.base_path = os.path.join(settings.MODELS_ROOT)
 
-        self.base_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "AImodels"
+        # Model paths using relative paths
+        self.audio_model_path = os.path.join(
+            self.base_path, "full_audio_emotion_model.h5"
         )
+        self.face_model_path = os.path.join(self.base_path, "face_expression_model3.h5")
+        self.scaler_path = os.path.join(self.base_path, "scaler2.pickle")
+        self.encoder_path = os.path.join(self.base_path, "encoder2.pickle")
 
-        # Model paths
-        self.audio_model_path = "/home/abubakr/Backend/Backend/APIBackend/AImodels/full_audio_emotion_model.h5"
-        self.scaler_path = (
-            "/home/abubakr/Backend/Backend/APIBackend/AImodels/scaler2.pickle"
-        )
-        self.encoder_path = (
-            "/home/abubakr/Backend/Backend/APIBackend/AImodels/encoder2.pickle"
+        # Haarcascade for face detection
+        self.face_cascade_path = (
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
         # Load models and preprocessing objects when needed
         self._audio_model = None
+        self._face_model = None
         self._scaler = None
         self._encoder = None
+        self._face_cascade = None
 
         # Mapping for emotions to categories
         self.combined_mapping = {
@@ -51,59 +56,91 @@ class InterviewAnalysisService:
             "surprise": "Happy",
         }
 
+        # Direct mapping for face emotions (CV2 model uses different labels)
+        self.face_emotion_labels = [
+            "Angry",
+            "Disgust",
+            "Fear",
+            "Happy",
+            "Neutral",
+            "Sad",
+            "Surprise",
+        ]
+
         # Emotion weights for confidence scoring
         self.emotion_weights = {
             "Happy": 1.00,  # Happiness is recognized most accurately
-            "Surprise": 0.80,  # Second‐highest accuracy
+            "Surprise": 0.80,  # Second-highest accuracy
             "Neutral": 0.7,  # Emotional expressions are detected more accurately than neutral
-            "Disgust": 0.55,  # Mid‐tier accuracy (disgust > anger)
-            "Angry": 0.5,  # Slightly below disgust (anger > sadness)
-            "Sad": 0.45,  # Lower but above fear (sadness > fear)
-            "Fear": 0.4,  # Fear is recognized least accurately
+            "Disgust": 0.55,  # Mid-tier accuracy (disgust > anger)
+            "Angry": 0.4,  # Slightly below disgust (anger > sadness)
+            "Sad": 0.3,  # Lower but above fear (sadness > fear)
+            "Fear": 0.10,  # Fear is recognized least accurately
         }
 
         # Memory optimization settings
         self.chunk_duration = 5
         self.max_chunks = 30
+        self.frame_sample_rate = 5  # Process 1 frame every N frames
+        self.max_frames = 20  # Maximum number of frames to process
 
     def load_models(self):
         """Lazy-load models when needed"""
-        if self._audio_model is None:
-            try:
-                gpus = tf.config.experimental.list_physical_devices("GPU")
-                if gpus:
-                    for gpu in gpus:
-                        tf.config.experimental.set_memory_growth(gpu, True)
+        # Load models with try-except blocks for better error handling
+        try:
+            # Configure GPU memory growth to prevent OOM errors
+            gpus = tf.config.experimental.list_physical_devices("GPU")
+            if gpus:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
 
-                # Load model with reduced precision to save memory
-                self._audio_model = load_model(self.audio_model_path)
-                logger.info("Audio emotion model loaded successfully")
-            except Exception as e:
-                logger.error(f"Failed to load audio model: {e}")
-                raise
+            # Load audio model if not loaded
+            if self._audio_model is None:
+                logger.info(f"Loading audio model from {self.audio_model_path}")
+                if os.path.exists(self.audio_model_path):
+                    self._audio_model = load_model(self.audio_model_path)
+                    logger.info("Audio emotion model loaded successfully")
+                else:
+                    logger.error(
+                        f"Audio model file not found at {self.audio_model_path}"
+                    )
 
-        if self._scaler is None:
-            try:
+            # Load face model if not loaded
+            if self._face_model is None:
+                logger.info(f"Loading face model from {self.face_model_path}")
+                if os.path.exists(self.face_model_path):
+                    self._face_model = load_model(self.face_model_path)
+                    logger.info("Face emotion model loaded successfully")
+                else:
+                    logger.error(f"Face model file not found at {self.face_model_path}")
+
+            # Load scaler if not loaded
+            if self._scaler is None and os.path.exists(self.scaler_path):
                 with open(self.scaler_path, "rb") as f:
                     self._scaler = pickle.load(f)
                 logger.info("Scaler loaded successfully")
-            except Exception as e:
-                logger.error(f"Failed to load scaler: {e}")
-                raise
 
-        if self._encoder is None:
-            try:
+            # Load encoder if not loaded
+            if self._encoder is None and os.path.exists(self.encoder_path):
                 with open(self.encoder_path, "rb") as f:
                     self._encoder = pickle.load(f)
                 logger.info("Encoder loaded successfully")
-            except Exception as e:
-                logger.error(f"Failed to load encoder: {e}")
-                raise
+
+            # Load face cascade if not loaded
+            if self._face_cascade is None:
+                self._face_cascade = cv2.CascadeClassifier(self.face_cascade_path)
+                logger.info("Face cascade classifier loaded successfully")
+
+        except Exception as e:
+            logger.error(f"Error loading models: {e}")
+            raise
 
     def process_recording(self, video_path):
         """
-        Main function to process a video recording and analyze it
-        Returns a dict with analysis results and a confidence score
+        Main function to process a video recording and analyze it for both
+        facial expressions and audio emotions.
+
+        Returns a dict with analysis results and a confidence score.
         """
         try:
             # Create a temporary working directory
@@ -111,16 +148,28 @@ class InterviewAnalysisService:
 
             # Extract audio and video frames
             audio_dir = os.path.join(temp_dir, "audio")
+            frames_dir = os.path.join(temp_dir, "frames")
             os.makedirs(audio_dir, exist_ok=True)
+            os.makedirs(frames_dir, exist_ok=True)
 
             # Extract audio from video
             audio_path = self.extract_audio(video_path, audio_dir)
 
+            # Extract frames from video
+            self.extract_frames(video_path, frames_dir)
+
             # Analyze audio for emotions
             audio_emotions = self.analyze_audio(audio_dir)
 
+            # Analyze frames for facial emotions
+            face_emotions = self.analyze_frames(frames_dir)
+
+            # Combine emotions with appropriate weighting
+            # Give more weight to facial expressions (70%) than audio (30%)
+            combined_emotions = self.combine_emotions(audio_emotions, face_emotions)
+
             # Calculate confidence score
-            confidence_score = self.calculate_confidence(audio_emotions)
+            confidence_score = self.calculate_confidence(combined_emotions)
 
             # Generate result
             result = self.determine_result(confidence_score)
@@ -132,7 +181,9 @@ class InterviewAnalysisService:
             gc.collect()
 
             return {
-                "emotions": dict(audio_emotions),
+                "emotions": dict(combined_emotions),
+                "audio_emotions": dict(audio_emotions),
+                "face_emotions": dict(face_emotions),
                 "confidence": confidence_score,
                 "result": result,
             }
@@ -149,7 +200,7 @@ class InterviewAnalysisService:
             raise
 
     def extract_audio(self, video_path, output_dir):
-        """Extract audio from video file and split into clips"""
+        """Extract audio from video file"""
         try:
             # Base filename without extension
             base_name = os.path.splitext(os.path.basename(video_path))[0]
@@ -166,10 +217,55 @@ class InterviewAnalysisService:
             logger.error(f"Failed to extract audio: {e}")
             raise
 
+    def extract_frames(self, video_path, output_dir):
+        """Extract frames from video for facial analysis"""
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                logger.error("Error opening video file")
+                return
+
+            frame_count = 0
+            saved_count = 0
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                # Save frame at regular intervals
+                if (
+                    frame_count % self.frame_sample_rate == 0
+                    and saved_count < self.max_frames
+                ):
+                    frame_path = os.path.join(
+                        output_dir, f"frame_{saved_count:04d}.jpg"
+                    )
+                    cv2.imwrite(frame_path, frame)
+                    saved_count += 1
+
+                frame_count += 1
+
+                # Stop if we've reached our max frames
+                if saved_count >= self.max_frames:
+                    break
+
+            cap.release()
+            logger.info(f"Extracted {saved_count} frames from video")
+
+        except Exception as e:
+            logger.error(f"Failed to extract frames: {e}")
+            raise
+
     def analyze_audio(self, audio_dir):
         """Analyze audio clips for emotional content with memory efficiency"""
         # Load models if not already loaded
         self.load_models()
+
+        # Check if audio model is available
+        if self._audio_model is None:
+            logger.warning("Audio model not available, skipping audio analysis")
+            return Counter()
 
         # Get all WAV files
         wav_files = [f for f in os.listdir(audio_dir) if f.lower().endswith(".wav")]
@@ -299,6 +395,108 @@ class InterviewAnalysisService:
             logger.error(f"Error extracting audio features: {e}")
             return None
 
+    def analyze_frames(self, frames_dir):
+        """Analyze video frames for facial emotions"""
+        # Load models if not already loaded
+        self.load_models()
+
+        # Check if face model is available
+        if self._face_model is None or self._face_cascade is None:
+            logger.warning("Face model not available, skipping face analysis")
+            return Counter()
+
+        # Get all image files
+        image_files = [
+            f
+            for f in os.listdir(frames_dir)
+            if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        ]
+        if not image_files:
+            logger.warning("No image files found in the frames directory")
+            return Counter()
+
+        emotion_predictions = []
+
+        for img_file in image_files:
+            try:
+                img_path = os.path.join(frames_dir, img_file)
+
+                # Read and preprocess the image
+                frame = cv2.imread(img_path)
+                if frame is None:
+                    continue
+
+                # Convert to grayscale for face detection
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                # Detect faces
+                faces = self._face_cascade.detectMultiScale(
+                    gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                )
+
+                # Process each face
+                for x, y, w, h in faces:
+                    face_roi = gray[y : y + h, x : x + w]
+
+                    # Resize to match model input size
+                    resized_face = cv2.resize(face_roi, (56, 56))
+
+                    # Normalize
+                    normalized_face = resized_face / 255.0
+
+                    # Reshape for model
+                    input_face = np.expand_dims(normalized_face, axis=0)
+                    input_face = np.expand_dims(input_face, axis=-1)
+
+                    # Predict emotion
+                    prediction = self._face_model.predict(input_face, verbose=0)
+                    emotion_idx = np.argmax(prediction)
+                    emotion = self.face_emotion_labels[emotion_idx]
+                    emotion_predictions.append(emotion)
+
+            except Exception as e:
+                logger.error(f"Error processing frame {img_file}: {e}")
+                continue
+
+        # Count occurrences of each emotion
+        emotion_counts = Counter(emotion_predictions)
+        return emotion_counts
+
+    def combine_emotions(self, audio_emotions, face_emotions):
+        """Combine audio and facial emotions with appropriate weighting"""
+        # If either analysis is empty, use the other one
+        if not audio_emotions:
+            return face_emotions
+        if not face_emotions:
+            return audio_emotions
+
+        # Combine with weighting (70% face, 30% audio)
+        combined = Counter()
+
+        # Normalize counters
+        total_audio = sum(audio_emotions.values())
+        total_face = sum(face_emotions.values())
+
+        if total_audio > 0 and total_face > 0:
+            # Add weighted audio emotions
+            for emotion, count in audio_emotions.items():
+                combined[emotion] += (count / total_audio) * 0.3
+
+            # Add weighted face emotions
+            for emotion, count in face_emotions.items():
+                combined[emotion] += (count / total_face) * 0.7
+
+            # Convert to integer counts
+            total_samples = max(1, total_audio + total_face) // 2
+            normalized = Counter()
+            for emotion, weight in combined.items():
+                normalized[emotion] = int(weight * total_samples)
+
+            return normalized
+
+        # If one is empty, return the other with full weight
+        return face_emotions if total_face > 0 else audio_emotions
+
     def calculate_confidence(self, emotion_counts):
         """Calculate a confidence score based on emotion distribution"""
         if not emotion_counts:
@@ -323,6 +521,5 @@ class InterviewAnalysisService:
         # Threshold values can be adjusted
         if confidence_score >= 39:
             return 2  # Approved/Hired
-
         else:
-            return 3
+            return 3  # Rejected
