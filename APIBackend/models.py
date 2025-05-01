@@ -47,7 +47,6 @@ class Status(models.Model):
         return self.title
 
 
-# APIBackend/models.py - Update the Application model
 class Application(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField()
@@ -74,7 +73,6 @@ class Result(models.Model):
         return self.title
 
 
-# APIBackend/models.py - Update the Interview model
 class Interview(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, null=None)
     date = models.DateTimeField(null=True, blank=True)
@@ -82,14 +80,10 @@ class Interview(models.Model):
     external_meeting_link = models.CharField(max_length=255, null=True, blank=True)
     interview_video = models.FileField(upload_to="interviews/", null=True, blank=True)
     analysis_data = models.JSONField(null=True, blank=True)
-    interview_questions = models.JSONField(null=True, blank=True)  # Add this field
+    interview_questions = models.JSONField(null=True, blank=True)
 
     class Meta:
         unique_together = ("application",)
-
-    # Add this method to your Interview model in models.py if it's missing
-
-    # Update in APIBackend/models.py - Interview class
 
     def update_result_from_analysis(self, analysis_data):
         self.analysis_data = analysis_data
@@ -124,20 +118,13 @@ class EvaluationStatus(models.Model):
         return self.title
 
 
-# Updated APIBackend/models.py - PredictedCandidate model without timestamps
-
-
 class PredictedCandidate(models.Model):
     interview = models.OneToOneField(
         Interview, on_delete=models.CASCADE, related_name="predicted_candidate"
     )
-    status = models.ForeignKey(
-        EvaluationStatus, on_delete=models.CASCADE, default=1
-    )  # Default to "Pending"
+    status = models.ForeignKey(EvaluationStatus, on_delete=models.CASCADE, default=1)
     evaluation_score = models.FloatField(null=True, blank=True)
-    evaluation_data = models.JSONField(
-        null=True, blank=True
-    )  # To store evaluation form responses
+    evaluation_data = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.interview.application.name} - {self.status}"

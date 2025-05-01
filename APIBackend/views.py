@@ -125,7 +125,7 @@ class RecruiterRequestView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "POST":
-            return []
+            return [IsAuthenticated()]
         return [IsAdminUser()]
 
 
@@ -186,21 +186,18 @@ class ApplicationView(generics.ListCreateAPIView):
             # Save the resume and get the file path
             file_path = default_storage.save(f"resumes/{resume.name}", resume)
             full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-
             try:
                 # Use the screening service to evaluate the resume
                 screening_service = ResumeScreeningService()
                 result = screening_service.screen_resume(
                     full_path, application.job
                 )  # returns dict with status id and match score
-
                 # Update application with screening results
                 new_status_id = result["status_id"]  # could be 1 or 2 or 3
                 new_status = Status.objects.get(pk=new_status_id)  # get status with id
                 application.status = new_status
                 application.match_score = result["match_score"]
                 application.save()
-
                 if new_status_id == 2:
                     default_result = Result.objects.get(
                         pk=1
@@ -403,43 +400,58 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
             instance.delete()
 
 
-# Add to APIBackend/views.py
-
-
 class PredictedCandidateView(generics.ListCreateAPIView):
     queryset = PredictedCandidate.objects.select_related("interview", "status").all()
     serializer_class = PredictedCandidateSerializer
-    permission_classes = [isRecruiter]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [isRecruiter()]
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-            return PredictedCandidate.objects.select_related(
+            queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).all()
+            return queryset
         elif user.groups.filter(name="Recruiter").exists():
-            return PredictedCandidate.objects.select_related(
+            queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).filter(interview__application__job__recruiter=user)
-        return PredictedCandidate.objects.none()
+            return queryset
+        else:
+            queryset = PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).filter(interview__application__user=user)
 
 
 class SinglePredictedCandidateView(generics.RetrieveUpdateDestroyAPIView):
     queryset = PredictedCandidate.objects.select_related("interview", "status").all()
     serializer_class = PredictedCandidateSerializer
-    permission_classes = [isRecruiter]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [isRecruiter()]
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-            return PredictedCandidate.objects.select_related(
+            queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).all()
+            return queryset
         elif user.groups.filter(name="Recruiter").exists():
-            return PredictedCandidate.objects.select_related(
+            queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).filter(interview__application__job__recruiter=user)
-        return PredictedCandidate.objects.none()
+            return queryset
+        else:
+            queryset = PredictedCandidate.objects.select_related(
+                "interview", "status"
+            ).filter(interview__application__user=user)
 
 
 class EvaluationFormView(APIView):
@@ -535,9 +547,6 @@ class Recruiter(APIView):
             return Response(
                 {"message": f"User {username} promoted to recruiter."},
                 status=status.HTTP_200_OK,
-            )
-            return Response(
-                {"error": "Username not provided."}, status=status.HTTP_400_BAD_REQUEST
             )
 
 

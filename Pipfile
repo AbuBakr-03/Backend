@@ -21,6 +21,8 @@ pypdf2 = "*"
 imageio = {extras = ["ffmpeg"], version = "*"}
 soundfile = "*"
 google-generativeai = "*"
+pygraphviz = "*"
+pylint = "*"
 
 [dev-packages]
 

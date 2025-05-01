@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "djoser",
     "django_filters",
     "corsheaders",
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
@@ -140,7 +141,7 @@ DJOSER = {
         "current_user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5190",
+    "DOMAIN": "127.0.0.1:5191",
     "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -162,5 +163,5 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5190",  # Add your frontend URL here
+    "http://127.0.0.1:5191",  # Add your frontend URL here
 ]

@@ -123,17 +123,10 @@ class InterviewSerializer(serializers.ModelSerializer):
         ]
 
 
-# Add to APIBackend/serializers.py
-
-
 class EvaluationStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvaluationStatus
         fields = "__all__"
-
-
-# Updated APIBackend/serializers.py - PredictedCandidateSerializer without timestamps
-
 
 class PredictedCandidateSerializer(serializers.ModelSerializer):
     interview = InterviewSerializer(read_only=True)
@@ -152,7 +145,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
-        # Add custom claims to the token itself
         token["is_staff"] = user.is_staff
         token["is_superuser"] = user.is_superuser
         token["is_recruiter"] = user.groups.filter(name="Recruiter").exists()
@@ -162,7 +154,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        # Add extra user info outside of the token
         data.update(
             {
                 "user": {

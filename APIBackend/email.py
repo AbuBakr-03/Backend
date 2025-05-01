@@ -8,10 +8,9 @@ class CustomPasswordResetEmail(PasswordResetEmail):
     def get_context_data(self):
         context = super().get_context_data()
 
-        user = context.get("user")
         uid = context.get("uid")
         token = context.get("token")
 
-        reset_url = f"http://127.0.0.1:5190/reset-password/{uid}/{token}"
+        reset_url = f"http://127.0.0.1:5191/reset-password/{uid}/{token}"
         context["reset_url"] = reset_url
         return context
