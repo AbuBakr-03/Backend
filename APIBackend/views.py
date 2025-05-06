@@ -425,6 +425,7 @@ class PredictedCandidateView(generics.ListCreateAPIView):
             queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).filter(interview__application__user=user)
+            return queryset
 
 
 class SinglePredictedCandidateView(generics.RetrieveUpdateDestroyAPIView):
@@ -452,6 +453,7 @@ class SinglePredictedCandidateView(generics.RetrieveUpdateDestroyAPIView):
             queryset = PredictedCandidate.objects.select_related(
                 "interview", "status"
             ).filter(interview__application__user=user)
+            return queryset
 
 
 class EvaluationFormView(APIView):
