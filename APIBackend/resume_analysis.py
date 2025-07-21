@@ -79,13 +79,10 @@ class ResumeAnalysisService:
 
             # Parse JSON response
             if "```json" in response_text:
-                # Extract JSON from markdown code block
                 json_text = response_text.split("```json")[1].split("```")[0].strip()
             elif "```" in response_text:
-                # Extract from generic code block
                 json_text = response_text.split("```")[1].split("```")[0].strip()
             else:
-                # Assume the whole response is JSON
                 json_text = response_text
 
             # Parse the JSON
@@ -97,7 +94,6 @@ class ResumeAnalysisService:
             return None
 
     def analyze_resume_for_job(self, resume_path, job_description):
-        """Generate interview questions based on resume and job description."""
         resume_text = self.extract_text_from_pdf(resume_path)
         if not resume_text:
             logger.warning("Failed to extract text from resume.")

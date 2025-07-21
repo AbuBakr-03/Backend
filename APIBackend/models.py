@@ -93,9 +93,9 @@ class Interview(models.Model):
         old_result_id = self.result_id
 
         if confidence >= 39:
-            self.result_id = 2  # Assuming 2 is the ID for "Hired/Accepted"
+            self.result_id = 2  
         else:
-            self.result_id = 3  # Assuming 3 is the ID for "Rejected"
+            self.result_id = 3  
 
         self.save()
 

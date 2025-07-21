@@ -1,3 +1,4 @@
+# APIBackend/interview_analysis.py
 import os
 import uuid
 import tempfile
@@ -78,11 +79,8 @@ class InterviewAnalysisService:
             "Fear": 0.10,  # Fear is recognized least accurately
         }
 
-        # Memory optimization settings
-        self.chunk_duration = 5
-        self.max_chunks = 30
+        self.chunk_duration = 5  # Process 5-second chunks
         self.frame_sample_rate = 5  # Process 1 frame every N frames
-        self.max_frames = 20  # Maximum number of frames to process
 
     def load_models(self):
         """Lazy-load models when needed"""
@@ -136,12 +134,7 @@ class InterviewAnalysisService:
             raise
 
     def process_recording(self, video_path):
-        """
-        Main function to process a video recording and analyze it for both
-        facial expressions and audio emotions.
-
-        Returns a dict with analysis results and a confidence score.
-        """
+        
         try:
             # Create a temporary working directory
             temp_dir = tempfile.mkdtemp(prefix="interview_analysis_")
@@ -218,12 +211,21 @@ class InterviewAnalysisService:
             raise
 
     def extract_frames(self, video_path, output_dir):
-        """Extract frames from video for facial analysis"""
+        """Extract frames from video for facial analysis - NOW PROCESSES ALL FRAMES"""
         try:
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 logger.error("Error opening video file")
                 return
+
+            # Get total frame count for logging
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            duration = total_frames / fps if fps > 0 else 0
+
+            logger.info(
+                f"Video has {total_frames} total frames at {fps:.2f} FPS ({duration:.2f} seconds)"
+            )
 
             frame_count = 0
             saved_count = 0
@@ -233,11 +235,8 @@ class InterviewAnalysisService:
                 if not ret:
                     break
 
-                # Save frame at regular intervals
-                if (
-                    frame_count % self.frame_sample_rate == 0
-                    and saved_count < self.max_frames
-                ):
+                # Save frame at regular intervals - NO MAX FRAME LIMIT
+                if frame_count % self.frame_sample_rate == 0:
                     frame_path = os.path.join(
                         output_dir, f"frame_{saved_count:04d}.jpg"
                     )
@@ -246,19 +245,17 @@ class InterviewAnalysisService:
 
                 frame_count += 1
 
-                # Stop if we've reached our max frames
-                if saved_count >= self.max_frames:
-                    break
-
             cap.release()
-            logger.info(f"Extracted {saved_count} frames from video")
+            logger.info(
+                f"Extracted {saved_count} frames from {total_frames} total frames (every {self.frame_sample_rate}th frame)"
+            )
 
         except Exception as e:
             logger.error(f"Failed to extract frames: {e}")
             raise
 
     def analyze_audio(self, audio_dir):
-        """Analyze audio clips for emotional content with memory efficiency"""
+        """Analyze audio clips for emotional content - NOW PROCESSES ENTIRE AUDIO"""
         # Load models if not already loaded
         self.load_models()
 
@@ -277,7 +274,7 @@ class InterviewAnalysisService:
         file_path = os.path.join(audio_dir, wav_files[0])
 
         try:
-            # Process audio in chunks to save memory
+            # Process entire audio file in chunks without max limitation
             emotion_predictions = self._predict_audio_emotion_chunked(file_path)
 
             # Count occurrences of each emotion
@@ -290,7 +287,7 @@ class InterviewAnalysisService:
             return Counter()
 
     def _predict_audio_emotion_chunked(self, file_path):
-        """Predict emotion from audio file in chunks to reduce memory usage"""
+        """Predict emotion from ENTIRE audio file in chunks - NO MAX CHUNKS LIMIT"""
         try:
             # Load audio file info without loading all data
             audio_info = sf.info(file_path)
@@ -301,23 +298,37 @@ class InterviewAnalysisService:
             # Calculate chunk sizes in samples
             chunk_samples = int(sample_rate * self.chunk_duration)
 
-            # Determine number of chunks
-            num_chunks = min(self.max_chunks, total_samples // chunk_samples)
+            # Calculate ALL chunks needed to process entire audio
+            num_chunks = total_samples // chunk_samples
+
+            # Add one more chunk if there are remaining samples
+            if total_samples % chunk_samples > 0:
+                num_chunks += 1
 
             logger.info(
-                f"Processing {num_chunks} audio chunks of {self.chunk_duration}s each"
+                f"Processing ALL {num_chunks} audio chunks of {self.chunk_duration}s each - ENTIRE AUDIO WILL BE PROCESSED"
             )
 
-            # Process audio in chunks
+            # Process ALL audio chunks
             emotion_predictions = []
 
             for i in range(num_chunks):
                 start_sample = i * chunk_samples
 
+                # For the last chunk, adjust the number of samples to read
+                samples_to_read = min(chunk_samples, total_samples - start_sample)
+
+                if samples_to_read <= 0:
+                    break
+
                 # Read just this chunk of audio
                 with sf.SoundFile(file_path, "r") as f:
                     f.seek(start_sample)
-                    chunk_data = f.read(chunk_samples)
+                    chunk_data = f.read(samples_to_read)
+
+                # Skip if chunk is too small
+                if len(chunk_data) < sample_rate:  # Skip chunks smaller than 1 second
+                    continue
 
                 # Mono conversion if stereo
                 if channels > 1:
@@ -338,12 +349,15 @@ class InterviewAnalysisService:
                     final_label = self.combined_mapping.get(raw_label, "Neutral")
                     emotion_predictions.append(final_label)
 
-                # Clear memory
+                # Clear memory after each chunk
                 del chunk_data
                 if features is not None:
                     del features
                 gc.collect()
 
+            logger.info(
+                f"Processed {len(emotion_predictions)} audio chunks from entire file"
+            )
             return emotion_predictions
 
         except Exception as e:
@@ -514,10 +528,7 @@ class InterviewAnalysisService:
         return confidence * 100  # Return as percentage
 
     def determine_result(self, confidence_score):
-        """
-        Determine interview result based on confidence score
-        Returns result ID (1 = pending, 2 = approved/hired, 3 = rejected)
-        """
+        
         # Threshold values can be adjusted
         if confidence_score >= 39:
             return 2  # Approved/Hired

@@ -66,7 +66,6 @@ class StatusSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-# APIBackend/serializers.py - Update ApplicationSerializer
 class ApplicationSerializer(serializers.ModelSerializer):
     status = StatusSerializer(read_only=True)
     job = JobSerializer(read_only=True)
@@ -127,6 +126,7 @@ class EvaluationStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvaluationStatus
         fields = "__all__"
+
 
 class PredictedCandidateSerializer(serializers.ModelSerializer):
     interview = InterviewSerializer(read_only=True)

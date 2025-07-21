@@ -74,19 +74,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "BackendProject.wsgi.application"
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+# tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": tmpPostgres.path.replace("/", ""),
+#         "USER": tmpPostgres.username,
+#         "PASSWORD": tmpPostgres.password,
+#         "HOST": tmpPostgres.hostname,
+#         "PORT": 5432,
+#     }
+# }
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": tmpPostgres.path.replace("/", ""),
-        "USER": tmpPostgres.username,
-        "PASSWORD": tmpPostgres.password,
-        "HOST": tmpPostgres.hostname,
-        "PORT": 5432,
-    }
+    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
 }
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -141,7 +144,7 @@ DJOSER = {
         "current_user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5174",
+    "DOMAIN": "127.0.0.1:5173",
     "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

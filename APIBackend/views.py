@@ -138,6 +138,10 @@ class SingleRecruiterRequestView(generics.RetrieveUpdateDestroyAPIView):
 class JobView(generics.ListCreateAPIView):
     queryset = Job.objects.select_related("department", "company").all().order_by("id")
     serializer_class = JobSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["department__title", "company__name"]
+    search_fields = ["title"]
+    ordering_fields = ["end_date"]
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -179,29 +183,22 @@ class ApplicationView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         status = Status.objects.get(pk=1)  # Default to 'Pending'
         resume = self.request.FILES.get("resume")
-        # Save application with default status first
         application = serializer.save(status=status)
-        # If resume is uploaded, process it
         if resume:
             # Save the resume and get the file path
             file_path = default_storage.save(f"resumes/{resume.name}", resume)
             full_path = os.path.join(settings.MEDIA_ROOT, file_path)
             try:
-                # Use the screening service to evaluate the resume
                 screening_service = ResumeScreeningService()
-                result = screening_service.screen_resume(
-                    full_path, application.job
-                )  # returns dict with status id and match score
+                result = screening_service.screen_resume(full_path, application.job)
                 # Update application with screening results
                 new_status_id = result["status_id"]  # could be 1 or 2 or 3
-                new_status = Status.objects.get(pk=new_status_id)  # get status with id
+                new_status = Status.objects.get(pk=new_status_id)
                 application.status = new_status
                 application.match_score = result["match_score"]
                 application.save()
                 if new_status_id == 2:
-                    default_result = Result.objects.get(
-                        pk=1
-                    )  # Get default result (usually 'Pending')
+                    default_result = Result.objects.get(pk=1)
                     Interview.objects.create(
                         application=application,
                         date=None,  # Date can remain empty for now
@@ -241,16 +238,12 @@ class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         application = self.get_object()
         if user.is_staff or application.job.recruiter == user:
-            # Get previous status
             previous_status_id = application.status.id
 
-            # Save the updated application
             updated_application = serializer.save()
 
-            # If status changed to 'Approved for Interview' (ID 2), create an interview
             current_status_id = updated_application.status.id
             if current_status_id == 2 and previous_status_id != 2:
-                # Check if an interview already exists
                 if not Interview.objects.filter(
                     application=updated_application
                 ).exists():
@@ -305,20 +298,15 @@ class InterviewView(generics.ListCreateAPIView):
 
     def process_interview_video(self, interview, video_file):
         try:
-            # Save the video file directly to the model
             interview.interview_video = video_file
             interview.save()
 
-            # Get the full path to the saved file
             full_path = interview.interview_video.path
 
-            # Now process the video for analysis
             try:
-                # Analyze the video using the interview analysis service
                 analysis_service = InterviewAnalysisService()
                 analysis_result = analysis_service.process_recording(full_path)
 
-                # Update the interview with the analysis results
                 interview.update_result_from_analysis(analysis_result)
 
             except Exception as e:
@@ -466,7 +454,6 @@ class EvaluationFormView(APIView):
             # Get the predicted candidate
             candidate = get_object_or_404(PredictedCandidate, pk=pk)
 
-            # Check permission - only recruiter of this job or admin can evaluate
             user = request.user
             if not (
                 user.is_staff or candidate.interview.application.job.recruiter == user
@@ -476,7 +463,6 @@ class EvaluationFormView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            # Get the evaluation form data
             evaluation_data = request.data.get("evaluation_data")
             if not evaluation_data:
                 return Response(
@@ -496,18 +482,14 @@ class EvaluationFormView(APIView):
             question_count = len(questions)
 
             for question in questions:
-                # Assume each question has a 'score' field with value 1-5
                 score = question.get("score", 0)
                 total_score += score
 
-            # Calculate average (0-5 scale)
+            # Calculate average
             average_score = total_score / question_count if question_count > 0 else 0
 
-            # Determine status based on score
-            # If average is >= 3.5 (70%), mark as Hired/Passed
             status_id = 2 if average_score >= 3.5 else 3  # 2 = Hired, 3 = Rejected
 
-            # Update the candidate
             candidate.evaluation_data = evaluation_data
             candidate.evaluation_score = average_score
             candidate.status_id = status_id

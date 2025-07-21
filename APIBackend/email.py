@@ -11,6 +11,6 @@ class CustomPasswordResetEmail(PasswordResetEmail):
         uid = context.get("uid")
         token = context.get("token")
 
-        reset_url = f"http://127.0.0.1:5194/reset-password/{uid}/{token}"
+        reset_url = f"http://127.0.0.1:5173/reset-password/{uid}/{token}"
         context["reset_url"] = reset_url
         return context
