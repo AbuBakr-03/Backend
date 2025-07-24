@@ -14,6 +14,7 @@ class Department(models.Model):
 class Company(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField()
+    logo = models.ImageField(upload_to="logos/", default="logos/building-2.png")
 
     def __str__(self):
         return self.name
@@ -93,9 +94,9 @@ class Interview(models.Model):
         old_result_id = self.result_id
 
         if confidence >= 39:
-            self.result_id = 2  
+            self.result_id = 2
         else:
-            self.result_id = 3  
+            self.result_id = 3
 
         self.save()
 

@@ -164,7 +164,9 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5173",  # Add your frontend URL here
+    "http://127.0.0.1:5173",  # Your Vite dev server
+    "http://localhost:5173",
 ]

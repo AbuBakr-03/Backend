@@ -69,14 +69,18 @@ class DepartmentView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [isRecruiter()]
+            return []
         return [IsAdminUser()]
 
 
 class SingleDepartmentView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return []
+        return [IsAdminUser()]
 
 
 class CompanyView(generics.ListCreateAPIView):
@@ -85,14 +89,18 @@ class CompanyView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [isRecruiter()]
+            return []
         return [IsAdminUser()]
 
 
 class SingleCompanyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
-    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return []
+        return [IsAdminUser()]
 
 
 class StatusView(generics.ListCreateAPIView):
