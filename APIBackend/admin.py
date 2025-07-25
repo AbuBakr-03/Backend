@@ -7,7 +7,7 @@ from .models import (
     Application,
     Result,
     Interview,
-    RecruiterRequest,
+    # RecruiterRequest,
     EvaluationStatus,
     PredictedCandidate,
 )
@@ -20,6 +20,6 @@ admin.site.register(Status)
 admin.site.register(Application)
 admin.site.register(Result)
 admin.site.register(Interview)
-admin.site.register(RecruiterRequest)
+# admin.site.register(RecruiterRequest)
 admin.site.register(EvaluationStatus)
 admin.site.register(PredictedCandidate)

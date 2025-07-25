@@ -1,11 +1,17 @@
-from django.contrib.auth.models import User, Group
+# from django.contrib.auth.models import User, Group
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.views import Response
-from rest_framework.decorators import permission_classes, APIView
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, BasePermission
+from rest_framework.decorators import permission_classes, APIView, api_view
+
+# from django_filters.rest_framework import DjangoFilterBackend
+# from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.permissions import (
+    IsAuthenticated,
+    IsAdminUser,
+    BasePermission,
+    AllowAny,
+)
 from .serializers import (
     DepartmentSerializer,
     CompanySerializer,
@@ -14,8 +20,9 @@ from .serializers import (
     ApplicationSerializer,
     ResultSerializer,
     InterviewSerializer,
-    RecruiterRequestSerializer,
+    # RecruiterRequestSerializer,
     PredictedCandidateSerializer,
+    CustomTokenRefreshSerializer,
 )
 from .models import (
     Department,
@@ -30,7 +37,7 @@ from .models import (
 )
 
 
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .serializers import CustomTokenObtainPairSerializer
 
 
@@ -39,7 +46,7 @@ from django.core.files.storage import default_storage
 import os
 from BackendProject import settings
 
-from rest_framework.decorators import action
+# from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -127,29 +134,25 @@ class SingleResultView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminUser]
 
 
-class RecruiterRequestView(generics.ListCreateAPIView):
-    queryset = RecruiterRequest.objects.all()
-    serializer_class = RecruiterRequestSerializer
+# class RecruiterRequestView(generics.ListCreateAPIView):
+#     queryset = RecruiterRequest.objects.all()
+#     serializer_class = RecruiterRequestSerializer
 
-    def get_permissions(self):
-        if self.request.method == "POST":
-            return [IsAuthenticated()]
-        return [IsAdminUser()]
+#     def get_permissions(self):
+#         if self.request.method == "POST":
+#             return [IsAuthenticated()]
+#         return [IsAdminUser()]
 
 
-class SingleRecruiterRequestView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = RecruiterRequest.objects.all()
-    serializer_class = RecruiterRequestSerializer
-    permission_classes = [IsAdminUser]
+# class SingleRecruiterRequestView(generics.RetrieveUpdateDestroyAPIView):
+#     queryset = RecruiterRequest.objects.all()
+#     serializer_class = RecruiterRequestSerializer
+#     permission_classes = [IsAdminUser]
 
 
 class JobView(generics.ListCreateAPIView):
     queryset = Job.objects.select_related("department", "company").all().order_by("id")
     serializer_class = JobSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["department__title", "company__name"]
-    search_fields = ["title"]
-    ordering_fields = ["end_date"]
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -521,34 +524,112 @@ class EvaluationFormView(APIView):
             )
 
 
-class Recruiter(APIView):
-    permission_classes = [IsAdminUser]
+# class Recruiter(APIView):
+#     permission_classes = [IsAdminUser]
 
-    def get(self, request):
-        group = get_object_or_404(Group, name="Recruiter")
-        users = group.user_set.all()
-        users_data = [{"username": user.username, "id": user.pk} for user in users]
-        return Response(users_data, status=status.HTTP_200_OK)
+#     def get(self, request):
+#         group = get_object_or_404(Group, name="Recruiter")
+#         users = group.user_set.all()
+#         users_data = [{"username": user.username, "id": user.pk} for user in users]
+#         return Response(users_data, status=status.HTTP_200_OK)
 
-    def post(self, request):
-        username = request.data.get("username")
-        if username:
-            user = get_object_or_404(User, username=username)
-            group = get_object_or_404(Group, name="Recruiter")
-            group.user_set.add(user)
+#     def post(self, request):
+#         username = request.data.get("username")
+#         if username:
+#             user = get_object_or_404(User, username=username)
+#             group = get_object_or_404(Group, name="Recruiter")
+#             group.user_set.add(user)
+#             return Response(
+#                 {"message": f"User {username} promoted to recruiter."},
+#                 status=status.HTTP_200_OK,
+#             )
+
+
+# class SingleRecruiter(APIView):
+#     permission_classes = [IsAdminUser]
+
+#     def delete(self, request, userID):
+#         user = get_object_or_404(User, id=userID)
+#         group = get_object_or_404(Group, name="Recruiter")
+#         group.user_set.remove(user)
+#         return Response(
+#             {"message": "User removed from Recruiter"}, status=status.HTTP_200_OK
+#         )
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            token = response.data
+            # Create response with only access token (no refresh token in response body)
+            response_data = {"access": token["access"], "role": token["role"]}
+            # Set refresh token in HttpOnly cookie
+            new_response = Response(response_data, status=status.HTTP_200_OK)
+            cookie_max_age = int(
+                settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+            )
+            new_response.set_cookie(
+                "refresh_token",
+                token["refresh"],
+                max_age=cookie_max_age,
+                httponly=True,
+                secure=not settings.DEBUG,  # Use secure cookies in production
+                samesite="Lax",
+            )
+            return new_response
+        else:
+            print(f"LOGIN: Failed with status {response.status_code}: {response.data}")
+        return response
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    serializer_class = CustomTokenRefreshSerializer
+
+    def post(self, request, *args, **kwargs):
+        # Get refresh token from HttpOnly cookie
+        refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
             return Response(
-                {"message": f"User {username} promoted to recruiter."},
-                status=status.HTTP_200_OK,
+                {"detail": "Refresh token not found in cookies"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        # Add refresh token to request data
+        request.data["refresh"] = refresh_token
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            token_data = response.data
+            # If rotation is enabled, we get a new refresh token
+            if "refresh" in token_data:
+                # Update the refresh token cookie
+                response.set_cookie(
+                    "refresh_token",
+                    token_data["refresh"],
+                    max_age=settings.SIMPLE_JWT[
+                        "REFRESH_TOKEN_LIFETIME"
+                    ].total_seconds(),
+                    httponly=True,
+                    secure=not settings.DEBUG,
+                    samesite="Lax",
+                )
+                # Remove refresh token from response body
+                del token_data["refresh"]
+        else:
+            print(
+                f"REFRESH: Failed with status {response.status_code}: {response.data}"
             )
 
+        return response
 
-class SingleRecruiter(APIView):
-    permission_classes = [IsAdminUser]
 
-    def delete(self, request, userID):
-        user = get_object_or_404(User, id=userID)
-        group = get_object_or_404(Group, name="Recruiter")
-        group.user_set.remove(user)
-        return Response(
-            {"message": "User removed from Recruiter"}, status=status.HTTP_200_OK
-        )
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def logout_view(request):
+    """Clear the refresh token cookie"""
+    response = Response(
+        {"detail": "Successfully logged out"}, status=status.HTTP_200_OK
+    )
+    response.delete_cookie("refresh_token")
+    return response

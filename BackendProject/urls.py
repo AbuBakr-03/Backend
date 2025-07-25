@@ -4,21 +4,25 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from APIBackend.views import CustomTokenObtainPairView
-from rest_framework_simplejwt.views import TokenBlacklistView
+from rest_framework_simplejwt.views import TokenVerifyView
 
 from django.conf import settings
 from django.conf.urls.static import static
+
+from APIBackend.views import (
+    CustomTokenRefreshView,
+    CustomTokenObtainPairView,
+    logout_view,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("APIBackend.urls")),
     path("auth/", include("djoser.urls")),
-    path("auth/jwt/create/", CustomTokenObtainPairView.as_view(), name="jwt-create"),
-    path("auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt-refresh"),
-    path(
-        "auth/jwt/logout/", TokenBlacklistView.as_view(), name="jwt-logout"
-    ),  # <-- add this
+    path("auth/jwt/create/", CustomTokenObtainPairView.as_view(), name="jwt_create"),
+    path("auth/jwt/refresh/", CustomTokenRefreshView.as_view(), name="jwt_refresh"),
+    path("auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
+    path("auth/logout/", logout_view, name="logout"),
 ]
 
 if settings.DEBUG:

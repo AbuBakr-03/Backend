@@ -1,4 +1,5 @@
-from django.contrib.auth.models import User
+from djoser.serializers import UserCreateSerializer
+from django.contrib.auth.models import User, Group
 from rest_framework import serializers
 from .models import (
     Department,
@@ -8,19 +9,19 @@ from .models import (
     Company,
     Status,
     Application,
-    RecruiterRequest,
+    # RecruiterRequest,
     EvaluationStatus,
     PredictedCandidate,
 )
 
 
-class RecruiterRequestSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    username = serializers.CharField(source="user.username", read_only=True)
+# class RecruiterRequestSerializer(serializers.ModelSerializer):
+#     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+#     username = serializers.CharField(source="user.username", read_only=True)
 
-    class Meta:
-        model = RecruiterRequest
-        fields = ["id", "user", "username"]
+#     class Meta:
+#         model = RecruiterRequest
+#         fields = ["id", "user", "username"]
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -137,33 +138,82 @@ class PredictedCandidateSerializer(serializers.ModelSerializer):
         fields = ["id", "interview", "status", "evaluation_score", "evaluation_data"]
 
 
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenRefreshSerializer,
+)
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-
-        token["is_staff"] = user.is_staff
-        token["is_superuser"] = user.is_superuser
-        token["is_recruiter"] = user.groups.filter(name="Recruiter").exists()
-
-        return token
-
     def validate(self, attrs):
         data = super().validate(attrs)
-
-        data.update(
-            {
-                "user": {
-                    "id": self.user.id,
-                    "email": self.user.email,
-                    "is_staff": self.user.is_staff,
-                    "is_superuser": self.user.is_superuser,
-                    "is_recruiter": self.user.groups.filter(name="Recruiter").exists(),
-                }
-            }
+        data["role"] = (
+            "admin"
+            if self.user.is_superuser
+            else (
+                "Recruiter"
+                if self.user.groups.filter(name="Recruiter").exists()
+                else "user"
+            )
         )
+        return data
+
+
+class CustomUserCreateSerializer(UserCreateSerializer):
+    group = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta(UserCreateSerializer.Meta):
+        fields = UserCreateSerializer.Meta.fields + ("group",)
+
+    def validate(self, attrs):
+        # Remove group from attrs before parent validation
+        group_name = attrs.pop("group", None)
+        # Call parent validation
+        validated_data = super().validate(attrs)
+        # Add group back to validated data for use in create method
+        if group_name:
+            validated_data["group"] = group_name
+        return validated_data
+
+    def create(self, validated_data):
+        group_name = validated_data.get("group")
+        validated_data.pop("group", None)
+        user = super().create(validated_data)
+
+        if group_name:
+            group = Group.objects.get(name=group_name)
+            user.groups.add(group)
+
+        return user
+
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Get the refresh token and extract user info
+        refresh = RefreshToken(attrs["refresh"])
+        user_id = refresh.payload.get("user_id")
+
+        if user_id:
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            try:
+                user = User.objects.get(id=user_id)
+                data["role"] = (
+                    "admin"
+                    if user.is_superuser
+                    else (
+                        "Recruiter"
+                        if user.groups.filter("Recruiter").exists()
+                        else "user"
+                    )
+                )
+
+            except User.DoesNotExist:
+                data["role"] = "user"
+        else:
+            data["role"] = "user"
 
         return data

@@ -131,5 +131,5 @@ class PredictedCandidate(models.Model):
         return f"{self.interview.application.name} - {self.status}"
 
 
-class RecruiterRequest(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=None)
+# class RecruiterRequest(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE, null=None)

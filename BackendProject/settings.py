@@ -129,8 +129,6 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 12,  # Default items per page
 }
 DJOSER = {
     "LOGIN_FIELD": "username",
@@ -142,6 +140,7 @@ DJOSER = {
     },
     "SERIALIZERS": {
         "current_user": "djoser.serializers.UserSerializer",
+        "create_user": "APIBackend.serializers.CustomUserCreateSerializer",
     },
     "TOKEN_MODEL": None,
     "DOMAIN": "127.0.0.1:5173",
@@ -156,13 +155,13 @@ EMAIL_HOST_PASSWORD = "re_a8aCPRUS_3fqdzqBasSrLKPHRX9bXCx7q"
 DEFAULT_FROM_EMAIL = "noreply@smarthr.website"
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=120),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=20),
     "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": True,
+    "BLACKLIST_AFTER_ROTATION": False,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
-    "AUTH_HEADER_TYPES": ("Bearer",),
+    "UPDATE_LAST_LOGIN": True,
 }
 CORS_ALLOW_CREDENTIALS = True
 
