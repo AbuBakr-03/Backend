@@ -206,7 +206,7 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
                     if user.is_superuser
                     else (
                         "Recruiter"
-                        if user.groups.filter("Recruiter").exists()
+                        if user.groups.filter(name="Recruiter").exists()
                         else "user"
                     )
                 )
