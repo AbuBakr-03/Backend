@@ -32,7 +32,7 @@ from .models import (
     Application,
     Result,
     Interview,
-    RecruiterRequest,
+    # RecruiterRequest,
     PredictedCandidate,
 )
 
