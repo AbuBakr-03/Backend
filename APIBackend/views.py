@@ -1,17 +1,21 @@
-# from django.contrib.auth.models import User, Group
 from django.shortcuts import get_object_or_404
+from django.core.files.storage import default_storage
 from rest_framework import generics, status
-from rest_framework.views import Response
-from rest_framework.decorators import permission_classes, APIView, api_view
-
-# from django_filters.rest_framework import DjangoFilterBackend
-# from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import (
     IsAuthenticated,
     IsAdminUser,
     BasePermission,
     AllowAny,
 )
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from .serializers import (
     DepartmentSerializer,
     CompanySerializer,
@@ -20,10 +24,11 @@ from .serializers import (
     ApplicationSerializer,
     ResultSerializer,
     InterviewSerializer,
-    # RecruiterRequestSerializer,
     PredictedCandidateSerializer,
+    CustomTokenObtainPairSerializer,
     CustomTokenRefreshSerializer,
 )
+
 from .models import (
     Department,
     Company,
@@ -32,29 +37,18 @@ from .models import (
     Application,
     Result,
     Interview,
-    # RecruiterRequest,
     PredictedCandidate,
 )
 
+from .services import (
+    ResumeScreeningService,
+    CandidateEvaluationService,
+)
 
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .serializers import CustomTokenObtainPairSerializer
-
-
-from .services import ResumeScreeningService
-from django.core.files.storage import default_storage
-import os
-from BackendProject import settings
-
-# from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.core.files.storage import default_storage
-import os
 from .interview_analysis import InterviewAnalysisService
 
-from .services import CandidateEvaluationService
+import os
+from BackendProject import settings
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -153,6 +147,11 @@ class SingleResultView(generics.RetrieveUpdateDestroyAPIView):
 class JobView(generics.ListCreateAPIView):
     queryset = Job.objects.select_related("department", "company").all().order_by("id")
     serializer_class = JobSerializer
+
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ["title"]
+    # ordering_fields = ["title", "end_date", "company__name", "department__title"]
+    filterset_fields = ["company"]
 
     def get_permissions(self):
         if self.request.method == "GET":

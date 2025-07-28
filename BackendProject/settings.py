@@ -3,24 +3,18 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 from pathlib import Path
 from datetime import timedelta
-
+from decouple import config
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-mr1k68@2w=76g-ug#&tl5d8e+mbydn1ob%zpa6%m4%eflhvc+3"
-GEMINI_API_KEY = os.environ.get(
-    "GEMINI_API_KEY", ""
-)  # Get from environment or set directly here
-
+SECRET_KEY = config("SECRET_KEY", cast=str, default="")
+GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+DEBUG = config("DEBUG", cast=bool, default=False)
 ALLOWED_HOSTS = []
 
-# BackendProject/settings.py - Add to the bottom of the file
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MODELS_ROOT = os.path.join(BASE_DIR, "APIBackend", "AImodels")
@@ -74,22 +68,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "BackendProject.wsgi.application"
 
-# tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": tmpPostgres.path.replace("/", ""),
-#         "USER": tmpPostgres.username,
-#         "PASSWORD": tmpPostgres.password,
-#         "HOST": tmpPostgres.hostname,
-#         "PORT": 5432,
-#     }
-# }
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
 
 DATABASES = {
-    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": tmpPostgres.path.replace("/", ""),
+        "USER": tmpPostgres.username,
+        "PASSWORD": tmpPostgres.password,
+        "HOST": tmpPostgres.hostname,
+        "PORT": 5432,
+    }
 }
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -143,7 +134,7 @@ DJOSER = {
         "create_user": "APIBackend.serializers.CustomUserCreateSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5173",
+    "DOMAIN": "127.0.0.1:5186",
     "SITE_NAME": "SmartHR",
 }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -166,6 +157,32 @@ SIMPLE_JWT = {
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5173",  # Your Vite dev server
-    "http://localhost:5173",
+    "http://127.0.0.1:5186",  # Your Vite dev server
+    "http://localhost:5186",
 ]
+CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
+CLOUDFLARE_R2_ACCESS_KEY = config("CLOUDFLARE_R2_ACCESS_KEY", cast=str, default="")
+CLOUDFLARE_R2_SECRET_KEY = config("CLOUDFLARE_R2_SECRET_KEY", cast=str, default="")
+CLOUDFLARE_R2_BUCKET_ENDPOINT = config(
+    "CLOUDFLARE_R2_BUCKET_ENDPOINT", cast=str, default=""
+)
+
+CLOUDFLARE_R2_CONFIG_OPTIONS = {
+    "bucket_name": CLOUDFLARE_R2_BUCKET,
+    "access_key": CLOUDFLARE_R2_ACCESS_KEY,
+    "secret_key": CLOUDFLARE_R2_SECRET_KEY,
+    "endpoint_url": CLOUDFLARE_R2_BUCKET_ENDPOINT,
+    "default_acl": "public-read",
+    "signature_version": "s3v4",
+}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "helpers.cloudflare.storages.MediaFileStorage",
+        "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
+    },
+    "staticfiles": {
+        "BACKEND": "helpers.cloudflare.storages.StaticFileStorage",
+        "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
+    },
+}
