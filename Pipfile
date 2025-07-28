@@ -4,28 +4,30 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "*"
-psycopg = {extras = ["binary"], version = "*"}
-dj-database-url = "*"
 load-dotenv = "*"
+pylint = "*"
+django-storages = "*"
+django = "*"
 djangorestframework = "*"
 djoser = "*"
-django-filter = "*"
-resend = "*"
-dj-rest-auth = {extras = ["with_social"], version = "*"}
 djangorestframework-simplejwt = "*"
+django-filter = "*"
 django-cors-headers = "*"
+dj-database-url = "*"
+python-decouple = "*"
+python-dotenv = "*"
+whitenoise = "*"
+google-generativeai = "*"
 nltk = "*"
+psycopg = {extras = ["binary"], version = "*"}
 pypdf2 = "*"
 imageio = {extras = ["ffmpeg"], version = "*"}
 soundfile = "*"
-google-generativeai = "*"
+resend = "*"
+dj-rest-auth = {extras = ["with_social"], version = "*"}
 pygraphviz = "*"
-pylint = "*"
-python-decouple = "*"
-whitenoise = "*"
 gunicorn = "*"
-django-storages = "*"
+numpy = "<2.0"
 
 [dev-packages]
 
