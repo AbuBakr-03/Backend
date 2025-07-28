@@ -8,6 +8,7 @@ from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.porter import PorterStemmer
 from PyPDF2 import PdfReader
 from django.conf import settings
+from django.core.files.storage import default_storage
 
 # Make sure to download NLTK resources
 nltk.download("punkt")
@@ -28,7 +29,8 @@ class ResumeScreeningService:
 
     def read_resume(self, resume_path):
         try:
-            with open(resume_path, "rb") as f:
+            # Use default_storage.open() instead of open() for cloud storage
+            with default_storage.open(resume_path, "rb") as f:
                 pdf_reader = PdfReader(f)
                 content = "\n".join(
                     page.extract_text().strip() for page in pdf_reader.pages
@@ -118,7 +120,7 @@ class ResumeScreeningService:
         )
 
         # ID 1: Pending, ID 2: Approved for Interview, ID 3: Rejected
-        if match_score >= 50:  
+        if match_score >= 50:
             status_id = 2  # Approved for interview
         else:
             status_id = 3  # Rejected
@@ -128,7 +130,6 @@ class ResumeScreeningService:
             "status_id": status_id,
             "matched_words": matched_words,
         }
-
 
 
 class CandidateEvaluationService:

@@ -5,6 +5,7 @@ from PyPDF2 import PdfReader
 import google.generativeai as genai
 from django.conf import settings
 import logging
+from django.core.files.storage import default_storage
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ class ResumeAnalysisService:
     def extract_text_from_pdf(self, pdf_path):
         """Extract text content from a PDF file."""
         try:
-            with open(pdf_path, "rb") as file:
+            # Use default_storage.open() instead of open() for cloud storage
+            with default_storage.open(pdf_path, "rb") as file:
                 pdf_reader = PdfReader(file)
                 text = ""
                 for page in pdf_reader.pages:

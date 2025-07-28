@@ -197,10 +197,12 @@ class ApplicationView(generics.ListCreateAPIView):
         if resume:
             # Save the resume and get the file path
             file_path = default_storage.save(f"resumes/{resume.name}", resume)
-            full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+            # Remove the full_path line completely
             try:
                 screening_service = ResumeScreeningService()
-                result = screening_service.screen_resume(full_path, application.job)
+                result = screening_service.screen_resume(
+                    file_path, application.job
+                )  # Use file_path directly
                 # Update application with screening results
                 new_status_id = result["status_id"]  # could be 1 or 2 or 3
                 new_status = Status.objects.get(pk=new_status_id)
@@ -208,7 +210,7 @@ class ApplicationView(generics.ListCreateAPIView):
                 application.match_score = result["match_score"]
                 application.save()
                 if new_status_id == 2:
-                    default_result = Result.objects.get(pk=1)
+                    default_result = Result.objects.get(pk=3)
                     Interview.objects.create(
                         application=application,
                         date=None,  # Date can remain empty for now
@@ -257,7 +259,7 @@ class SingleApplicationView(generics.RetrieveUpdateDestroyAPIView):
                 if not Interview.objects.filter(
                     application=updated_application
                 ).exists():
-                    default_result = Result.objects.get(pk=1)  # Get default result
+                    default_result = Result.objects.get(pk=3)  # Get default result
                     Interview.objects.create(
                         application=updated_application,
                         date=None,  # Date can remain empty for now
@@ -297,7 +299,7 @@ class InterviewView(generics.ListCreateAPIView):
             return queryset
 
     def perform_create(self, serializer):
-        result = Result.objects.get(pk=1)
+        result = Result.objects.get(pk=3)
         interview = serializer.save(result=result)
 
         # Check if a video file was uploaded

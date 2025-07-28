@@ -56,8 +56,8 @@ class InterviewQuestionsView(APIView):
                 )
 
             # Get the full path to the resume file
-            resume_path = interview.application.resume.path
-
+            # Get the file path from storage (works with cloud storage)
+            resume_path = interview.application.resume.name
             # Get job description
             job = interview.application.job
             job_description = f"Title: {job.title}\nResponsibilities: {job.responsiblities}\nQualifications: {job.qualification}\nNice to haves: {job.nice_to_haves}"
