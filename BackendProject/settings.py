@@ -28,8 +28,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".railway.app",  # Allow all Render subdomains
-    "your-app-name.railway.app",  # Your specific Railway URL
-    config("RENDER_EXTERNAL_HOSTNAME", default=""),  # Your specific Render URL
+    config("RAILWAY_EXTERNAL_HOSTNAME", default=""),  # Your specific Render URL
 ]
 
 ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
@@ -199,6 +198,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5186",
     "http://localhost:5186",
+    "https://backend-production-a5f8.up.railway.app",
 ]
 CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
 CLOUDFLARE_R2_ACCESS_KEY = config("CLOUDFLARE_R2_ACCESS_KEY", cast=str, default="")
