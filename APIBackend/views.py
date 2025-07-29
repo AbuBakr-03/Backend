@@ -375,6 +375,8 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
                 application__user=user
             )
             return queryset
+        
+    
 
     def perform_update(self, serializer):
         user = self.request.user
@@ -383,7 +385,7 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
         if user.is_staff or interview.application.job.recruiter == user:
             try:
                 print(f"Starting interview update for ID: {interview.id}")
-
+                
                 # Save the updated interview first
                 updated_interview = serializer.save()
                 print("Interview basic data updated successfully")
@@ -392,21 +394,20 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
                 if "interview_video" in self.request.FILES:
                     interview_video = self.request.FILES["interview_video"]
                     if interview_video:
-                        print(f"Processing video upload: {interview_video.name}")
-                        print(f"Video size: {interview_video.size} bytes")
-                        print(f"Video content type: {interview_video.content_type}")
-
-                        self.process_interview_video(updated_interview, interview_video)
-                        print("Video processing completed")
+                        file_size_mb = interview_video.size / (1024 * 1024)
+                        print(f"Processing video upload: {interview_video.name} ({file_size_mb:.2f} MB)")
+                        
+                        # Just save the video, skip AI processing for now
+                        self.save_video_without_analysis(updated_interview, interview_video)
+                        print("Video upload completed successfully")
                 else:
                     print("No video file in request")
-
+                    
             except Exception as e:
                 print(f"❌ Error in perform_update: {e}")
                 import traceback
-
                 traceback.print_exc()
-                raise  # Re-raise the exception so it shows in the response
+                raise
 
     def process_interview_video(self, interview, video_file):
         try:
@@ -432,7 +433,26 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
 
         except Exception as e:
             print(f"Error saving interview video: {e}")
-
+    def save_video_without_analysis(self, interview, video_file):
+        """Save video file without immediate AI analysis"""
+        try:
+            print(f"Saving video file: {video_file.name}")
+            
+            # Save the video file to Cloudflare R2
+            interview.interview_video = video_file
+            interview.save()
+            
+            print(f"✅ Video saved successfully")
+            print(f"📁 Video URL: {interview.interview_video.url}")
+            
+            # Note: AI analysis can be triggered separately later
+            print("💡 AI analysis can be run separately after upload")
+            
+        except Exception as e:
+            print(f"❌ Error saving interview video: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     def perform_destroy(self, instance):
         user = self.request.user
         if user.is_staff or instance.application.job.recruiter == user:
