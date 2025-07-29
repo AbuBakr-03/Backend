@@ -426,90 +426,157 @@ class InterviewAnalysisService:
             logger.error(f"Error extracting audio features: {e}")
             return None
 
+    # Replace your analyze_frames method with this heavily logged version
     def analyze_frames(self, frames_dir):
-        """Analyze video frames for facial emotions"""
+        """Analyze video frames for facial emotions - HEAVY DEBUG VERSION"""
+        logger.info("🎬 STARTING analyze_frames method")
+
         # Load models if not already loaded
+        logger.info("🤖 Loading models...")
         self.load_models()
+        logger.info("✅ Models loaded successfully")
 
         # Check if face model is available
         if self._face_model is None or self._face_cascade is None:
-            logger.warning("Face model not available, skipping face analysis")
+            logger.warning("❌ Face model not available, skipping face analysis")
             return Counter()
+        logger.info("✅ Face model and cascade are available")
 
         # Get all image files
+        logger.info("📁 Getting image files from directory...")
         image_files = [
             f
             for f in os.listdir(frames_dir)
             if f.lower().endswith((".jpg", ".jpeg", ".png"))
         ]
         if not image_files:
-            logger.warning("No image files found in the frames directory")
+            logger.warning("❌ No image files found in the frames directory")
             return Counter()
 
+        logger.info(f"📸 Found {len(image_files)} image files to process")
+
         emotion_predictions = []
+        frame_counter = 0
 
         for img_file in image_files:
+            frame_counter += 1
+            logger.info(
+                f"🖼️  Processing frame {frame_counter}/{len(image_files)}: {img_file}"
+            )
+
             try:
                 img_path = os.path.join(frames_dir, img_file)
+                logger.info(f"   📂 Image path: {img_path}")
 
                 # Read and preprocess the image
+                logger.info("   📖 Reading image with cv2.imread...")
                 frame = cv2.imread(img_path)
                 if frame is None:
+                    logger.warning(f"   ⚠️  Failed to read frame {img_file}, skipping")
                     continue
+                logger.info(f"   ✅ Image read successfully, shape: {frame.shape}")
 
                 # Convert to grayscale for face detection
+                logger.info("   🎨 Converting to grayscale...")
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                logger.info(f"   ✅ Converted to grayscale, shape: {gray.shape}")
 
                 # Detect faces
+                logger.info("   👤 Detecting faces with cascade classifier...")
                 faces = self._face_cascade.detectMultiScale(
                     gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
                 )
+                logger.info(f"   👥 Found {len(faces)} faces in frame")
+
+                if len(faces) == 0:
+                    logger.info("   ℹ️  No faces found, skipping to next frame")
+                    continue
 
                 # Process each face
+                face_counter = 0
                 for x, y, w, h in faces:
+                    face_counter += 1
+                    logger.info(
+                        f"   🎯 Processing face {face_counter}/{len(faces)} - coords: ({x},{y},{w},{h})"
+                    )
+
+                    logger.info("   ✂️  Extracting face ROI...")
                     face_roi = gray[y : y + h, x : x + w]
+                    logger.info(f"   ✅ Face ROI extracted, shape: {face_roi.shape}")
 
                     # Resize to match model input size
+                    logger.info("   🔄 Resizing face to 56x56...")
                     resized_face = cv2.resize(face_roi, (56, 56))
+                    logger.info(f"   ✅ Face resized, shape: {resized_face.shape}")
 
                     # Normalize
+                    logger.info("   📏 Normalizing face data...")
                     normalized_face = resized_face / 255.0
+                    logger.info(
+                        f"   ✅ Face normalized, min: {normalized_face.min():.3f}, max: {normalized_face.max():.3f}"
+                    )
 
                     # Reshape for model
+                    logger.info("   🔧 Reshaping for model input...")
                     input_face = np.expand_dims(normalized_face, axis=0)
                     input_face = np.expand_dims(input_face, axis=-1)
-
-                    # prediction = self._face_model.predict(input_face, verbose=0) The face model is trying to process 209 frames at once, and each predict() call creates memory that isn't being cleared fast enough, leading to OOM.
+                    logger.info(
+                        f"   ✅ Face reshaped for model, final shape: {input_face.shape}"
+                    )
 
                     # Memory-optimized prediction
-                    # What This Does:
-                    # Forces single batch processing: batch_size=1 prevents TensorFlow from trying to optimize batches
-                    # Immediate memory cleanup: del prediction and gc.collect() right after each prediction
-                    # Error handling: If one frame fails, continue with others
+                    logger.info("   🧠 STARTING FACE MODEL PREDICTION...")
                     try:
+                        logger.info("   🚀 Calling self._face_model.predict()...")
                         prediction = self._face_model.predict(
                             input_face,
                             verbose=0,
                             batch_size=1,  # Force single prediction at a time
                         )
+                        logger.info(
+                            f"   ✅ Prediction completed! Shape: {prediction.shape}"
+                        )
+                        logger.info(f"   📊 Prediction values: {prediction[0]}")
+
                         emotion_idx = np.argmax(prediction)
                         emotion = self.face_emotion_labels[emotion_idx]
+                        logger.info(
+                            f"   🎭 Predicted emotion: {emotion} (index: {emotion_idx})"
+                        )
+
                         emotion_predictions.append(emotion)
 
                         # Immediately clear the prediction to free memory
+                        logger.info("   🧹 Cleaning up memory...")
                         del prediction
                         gc.collect()
+                        logger.info("   ✅ Memory cleanup complete")
 
                     except Exception as e:
-                        logger.warning(f"Face prediction failed for {img_file}: {e}")
+                        logger.error(
+                            f"   💥 Face prediction failed for {img_file}: {e}"
+                        )
+                        logger.error(f"   🔍 Exception type: {type(e).__name__}")
+                        import traceback
+
+                        logger.error(f"   📜 Full traceback: {traceback.format_exc()}")
                         continue
 
             except Exception as e:
-                logger.error(f"Error processing frame {img_file}: {e}")
+                logger.error(f"💥 Error processing frame {img_file}: {e}")
+                logger.error(f"🔍 Exception type: {type(e).__name__}")
+                import traceback
+
+                logger.error(f"📜 Full traceback: {traceback.format_exc()}")
                 continue
+
+        logger.info(
+            f"🎉 Face analysis complete! Processed {len(emotion_predictions)} faces"
+        )
 
         # Count occurrences of each emotion
         emotion_counts = Counter(emotion_predictions)
+        logger.info(f"📈 Emotion counts: {dict(emotion_counts)}")
         return emotion_counts
 
     def combine_emotions(self, audio_emotions, face_emotions):
