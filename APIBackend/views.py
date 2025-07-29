@@ -434,19 +434,22 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
         except Exception as e:
             print(f"Error saving interview video: {e}")
     def save_video_without_analysis(self, interview, video_file):
-        """Save video file without immediate AI analysis"""
+        """Save video file without immediate AI analysis - memory efficient"""
         try:
             print(f"Saving video file: {video_file.name}")
+            print(f"Video size: {video_file.size / (1024*1024):.2f} MB")
             
-            # Save the video file to Cloudflare R2
+            # Check file size before processing
+            max_size_mb = 20  # Reduced limit for Railway
+            if video_file.size > (max_size_mb * 1024 * 1024):
+                raise ValueError(f"File too large: {video_file.size/(1024*1024):.2f}MB. Max: {max_size_mb}MB")
+            
+            # Save the video file to Cloudflare R2 (streaming)
             interview.interview_video = video_file
             interview.save()
             
             print(f"✅ Video saved successfully")
             print(f"📁 Video URL: {interview.interview_video.url}")
-            
-            # Note: AI analysis can be triggered separately later
-            print("💡 AI analysis can be run separately after upload")
             
         except Exception as e:
             print(f"❌ Error saving interview video: {e}")
