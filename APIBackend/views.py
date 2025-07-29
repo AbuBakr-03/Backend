@@ -200,9 +200,7 @@ class ApplicationView(generics.ListCreateAPIView):
             # Remove the full_path line completely
             try:
                 screening_service = ResumeScreeningService()
-                result = screening_service.screen_resume(
-                    file_path, application.job
-                )  # Use file_path directly
+                result = screening_service.screen_resume(file_path, application.job)  # Use file_path directly
                 # Update application with screening results
                 new_status_id = result["status_id"]  # could be 1 or 2 or 3
                 new_status = Status.objects.get(pk=new_status_id)
@@ -310,44 +308,23 @@ class InterviewView(generics.ListCreateAPIView):
 
     def process_interview_video(self, interview, video_file):
         try:
-            print(f"Saving video file: {video_file.name}")
-
-            # Save the video file directly to the model
             interview.interview_video = video_file
             interview.save()
 
-            print(f"Video saved successfully to: {interview.interview_video.url}")
+            full_path = interview.interview_video.path
 
-            # Get the full path to the saved file
             try:
-                full_path = interview.interview_video.path
-                print(f"Video file path: {full_path}")
-            except Exception as path_error:
-                print(f"Could not get file path: {path_error}")
-                print("This might be normal if using cloud storage")
-                return  # Skip analysis if we can't get local path
-
-            # Now process the video for analysis
-            try:
-                print("Starting video analysis...")
-                # Analyze the video using the interview analysis service
                 analysis_service = InterviewAnalysisService()
                 analysis_result = analysis_service.process_recording(full_path)
 
-                # Update the interview with the analysis results
                 interview.update_result_from_analysis(analysis_result)
-                print("Video analysis completed successfully")
 
             except Exception as e:
                 # Log the error but don't raise it
-                print(f"⚠️  Error in video analysis (video saved successfully): {e}")
+                print(f"Error in video analysis: {e}")
 
         except Exception as e:
-            print(f"❌ Error saving interview video: {e}")
-            import traceback
-
-            traceback.print_exc()
-            raise  # This will cause the 500 error to show what went wrong
+            print(f"Error saving interview video: {e}")
 
 
 class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
@@ -375,39 +352,20 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
                 application__user=user
             )
             return queryset
-        
-    
 
     def perform_update(self, serializer):
         user = self.request.user
         interview = self.get_object()
 
         if user.is_staff or interview.application.job.recruiter == user:
-            try:
-                print(f"Starting interview update for ID: {interview.id}")
-                
-                # Save the updated interview first
-                updated_interview = serializer.save()
-                print("Interview basic data updated successfully")
+            # Save the updated interview first
+            updated_interview = serializer.save()
 
-                # Then check if a new video was uploaded
-                if "interview_video" in self.request.FILES:
-                    interview_video = self.request.FILES["interview_video"]
-                    if interview_video:
-                        file_size_mb = interview_video.size / (1024 * 1024)
-                        print(f"Processing video upload: {interview_video.name} ({file_size_mb:.2f} MB)")
-                        
-                        # Just save the video, skip AI processing for now
-                        self.save_video_without_analysis(updated_interview, interview_video)
-                        print("Video upload completed successfully")
-                else:
-                    print("No video file in request")
-                    
-            except Exception as e:
-                print(f"❌ Error in perform_update: {e}")
-                import traceback
-                traceback.print_exc()
-                raise
+            # Then check if a new video was uploaded
+            if "interview_video" in self.request.FILES:
+                interview_video = self.request.FILES["interview_video"]
+                if interview_video:
+                    self.process_interview_video(updated_interview, interview_video)
 
     def process_interview_video(self, interview, video_file):
         try:
@@ -433,29 +391,7 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
 
         except Exception as e:
             print(f"Error saving interview video: {e}")
-    def save_video_without_analysis(self, interview, video_file):
-        """Save video file without immediate AI analysis - memory efficient"""
-        try:
-            print(f"Saving video file: {video_file.name}")
-            print(f"Video size: {video_file.size / (1024*1024):.2f} MB")
-            
-            # Check file size before processing
-            max_size_mb = 20  # Reduced limit for Railway
-            if video_file.size > (max_size_mb * 1024 * 1024):
-                raise ValueError(f"File too large: {video_file.size/(1024*1024):.2f}MB. Max: {max_size_mb}MB")
-            
-            # Save the video file to Cloudflare R2 (streaming)
-            interview.interview_video = video_file
-            interview.save()
-            
-            print(f"✅ Video saved successfully")
-            print(f"📁 Video URL: {interview.interview_video.url}")
-            
-        except Exception as e:
-            print(f"❌ Error saving interview video: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+
     def perform_destroy(self, instance):
         user = self.request.user
         if user.is_staff or instance.application.job.recruiter == user:
