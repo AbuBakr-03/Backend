@@ -20,6 +20,18 @@ from .model_downloader import download_ai_models
 logger = logging.getLogger(__name__)
 
 
+# 🔍 Why The Error Is Happening
+# The Real Problem: Time, not memory or hanging
+# From your logs, I can see:
+
+# ✅ Each face prediction takes ~10-15 seconds per frame
+# ✅ You have 209 frames to process
+# ✅ 209 frames × 15 seconds = 52+ minutes of processing time
+# ❌ Railway worker timeout kills it after ~15 minutes
+
+# It's not crashing, it's just taking too long!
+
+
 class InterviewAnalysisService:
     """Service for analyzing interview recordings with both audio and facial emotion recognition."""
 
@@ -454,7 +466,12 @@ class InterviewAnalysisService:
             return Counter()
 
         logger.info(f"📸 Found {len(image_files)} image files to process")
-
+        # QUICK FIX: Only process first 20 frames to prevent timeout
+        if len(image_files) > 20:
+            image_files = image_files[:20]
+            logger.info(
+                f"🚀 REDUCED to first {len(image_files)} frames to prevent timeout"
+            )
         emotion_predictions = []
         frame_counter = 0
 
