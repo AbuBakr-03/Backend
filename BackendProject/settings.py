@@ -9,10 +9,11 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config("SECRET_KEY", cast=str, default="")
+SECRET_KEY = config("SECRET_KEY", cast=str, default="your-fallback-secret-key-here")
 GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
 DEBUG = config("DEBUG", cast=bool, default=False)
 
+# Security settings for production
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -23,39 +24,39 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = "DENY"
 
+# Railway-specific hostname handling
+RAILWAY_EXTERNAL_HOSTNAME = config("RAILWAY_PUBLIC_DOMAIN", default="")
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    ".railway.app",  # Allow all Render subdomains
-    config("RAILWAY_EXTERNAL_HOSTNAME", default=""),  # Your specific Render URL
+    "*.railway.app",
+    RAILWAY_EXTERNAL_HOSTNAME,
 ]
 
+# Filter out empty hosts
 ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-# This determines where AI models are stored based on environment
 
-# Check if we're running on Railway (production) or locally (development)
-IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None  # Railway sets this
+# AI Models storage configuration
+IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
 IS_LOCAL_DEV = DEBUG and not IS_RAILWAY
 
 if IS_RAILWAY:
     # On Railway: Store models in /tmp folder
     MODELS_ROOT = "/tmp/ai_models"
     print("🚀 Running on Railway - models will be stored in /tmp/ai_models")
-
 elif IS_LOCAL_DEV:
-    # Local development: Use your existing AImodels folder
+    # Local development: Use existing AImodels folder
     MODELS_ROOT = os.path.join(BASE_DIR, "APIBackend", "AImodels")
     print("💻 Running locally - using existing AImodels folder")
-
 else:
-    # Other production environments: Use a models folder in project
+    # Other production environments
     MODELS_ROOT = os.path.join(BASE_DIR, "models")
     print("🌐 Running in production - models stored in project/models folder")
 
-# Make sure the folder exists
+# Ensure models directory exists
 os.makedirs(MODELS_ROOT, exist_ok=True)
 
 INSTALLED_APPS = [
@@ -77,6 +78,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # For static files
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -106,19 +108,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "BackendProject.wsgi.application"
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": tmpPostgres.path.replace("/", ""),
-        "USER": tmpPostgres.username,
-        "PASSWORD": tmpPostgres.password,
-        "HOST": tmpPostgres.hostname,
-        "PORT": 5432,
+# Database configuration for Railway
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    tmpPostgres = urlparse(DATABASE_URL)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": tmpPostgres.path.replace("/", ""),
+            "USER": tmpPostgres.username,
+            "PASSWORD": tmpPostgres.password,
+            "HOST": tmpPostgres.hostname,
+            "PORT": 5432,
+        }
     }
-}
-
+else:
+    # Fallback for local development
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -135,16 +146,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
-STATIC_URL = "static/"
+# Static files configuration
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -159,28 +169,31 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
 }
+
 DJOSER = {
     "LOGIN_FIELD": "username",
     "USER_ID_FIELD": "username",
     "PASSWORD_RESET_CONFIRM_URL": "reset-password/{uid}/{token}",
     "SEND_PASSWORD_RESET_EMAIL": True,
     "EMAIL": {
-        "password_reset": "APIBackend.email.CustomPasswordResetEmail",  # This is a custom class we'll create
+        "password_reset": "APIBackend.email.CustomPasswordResetEmail",
     },
     "SERIALIZERS": {
         "current_user": "djoser.serializers.UserSerializer",
         "create_user": "APIBackend.serializers.CustomUserCreateSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": "127.0.0.1:5186",
+    "DOMAIN": config("FRONTEND_URL", default="127.0.0.1:5186"),
     "SITE_NAME": "SmartHR",
 }
+
+# Email configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.resend.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "resend"
-EMAIL_HOST_PASSWORD = "re_a8aCPRUS_3fqdzqBasSrLKPHRX9bXCx7q"
+EMAIL_HOST_PASSWORD = config("RESEND_API_KEY", default="")
 DEFAULT_FROM_EMAIL = "noreply@smarthr.website"
 
 SIMPLE_JWT = {
@@ -192,13 +205,15 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,
     "UPDATE_LAST_LOGIN": True,
 }
-CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5186",
     "http://localhost:5186",
-    "https://backend-production-a5f8.up.railway.app",
+    config("FRONTEND_URL", default=""),
 ]
+
+# Cloudflare R2 Configuration
 CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
 CLOUDFLARE_R2_ACCESS_KEY = config("CLOUDFLARE_R2_ACCESS_KEY", cast=str, default="")
 CLOUDFLARE_R2_SECRET_KEY = config("CLOUDFLARE_R2_SECRET_KEY", cast=str, default="")
@@ -206,25 +221,26 @@ CLOUDFLARE_R2_BUCKET_ENDPOINT = config(
     "CLOUDFLARE_R2_BUCKET_ENDPOINT", cast=str, default=""
 )
 
-CLOUDFLARE_R2_CONFIG_OPTIONS = {
-    "bucket_name": CLOUDFLARE_R2_BUCKET,
-    "access_key": CLOUDFLARE_R2_ACCESS_KEY,
-    "secret_key": CLOUDFLARE_R2_SECRET_KEY,
-    "endpoint_url": CLOUDFLARE_R2_BUCKET_ENDPOINT,
-    "default_acl": "public-read",
-    "signature_version": "s3v4",
-}
+if CLOUDFLARE_R2_BUCKET:
+    CLOUDFLARE_R2_CONFIG_OPTIONS = {
+        "bucket_name": CLOUDFLARE_R2_BUCKET,
+        "access_key": CLOUDFLARE_R2_ACCESS_KEY,
+        "secret_key": CLOUDFLARE_R2_SECRET_KEY,
+        "endpoint_url": CLOUDFLARE_R2_BUCKET_ENDPOINT,
+        "default_acl": "public-read",
+        "signature_version": "s3v4",
+    }
 
-STORAGES = {
-    "default": {
-        "BACKEND": "helpers.cloudflare.storages.MediaFileStorage",
-        "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
-    },
-    "staticfiles": {
-        "BACKEND": "helpers.cloudflare.storages.StaticFileStorage",
-        "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
-    },
-}
+    STORAGES = {
+        "default": {
+            "BACKEND": "helpers.cloudflare.storages.MediaFileStorage",
+            "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
+        },
+        "staticfiles": {
+            "BACKEND": "helpers.cloudflare.storages.StaticFileStorage",
+            "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
+        },
+    }
 
 LOGGING = {
     "version": 1,
