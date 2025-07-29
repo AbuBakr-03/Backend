@@ -310,23 +310,44 @@ class InterviewView(generics.ListCreateAPIView):
 
     def process_interview_video(self, interview, video_file):
         try:
+            print(f"Saving video file: {video_file.name}")
+
+            # Save the video file directly to the model
             interview.interview_video = video_file
             interview.save()
 
-            full_path = interview.interview_video.path
+            print(f"Video saved successfully to: {interview.interview_video.url}")
 
+            # Get the full path to the saved file
             try:
+                full_path = interview.interview_video.path
+                print(f"Video file path: {full_path}")
+            except Exception as path_error:
+                print(f"Could not get file path: {path_error}")
+                print("This might be normal if using cloud storage")
+                return  # Skip analysis if we can't get local path
+
+            # Now process the video for analysis
+            try:
+                print("Starting video analysis...")
+                # Analyze the video using the interview analysis service
                 analysis_service = InterviewAnalysisService()
                 analysis_result = analysis_service.process_recording(full_path)
 
+                # Update the interview with the analysis results
                 interview.update_result_from_analysis(analysis_result)
+                print("Video analysis completed successfully")
 
             except Exception as e:
                 # Log the error but don't raise it
-                print(f"Error in video analysis: {e}")
+                print(f"⚠️  Error in video analysis (video saved successfully): {e}")
 
         except Exception as e:
-            print(f"Error saving interview video: {e}")
+            print(f"❌ Error saving interview video: {e}")
+            import traceback
+
+            traceback.print_exc()
+            raise  # This will cause the 500 error to show what went wrong
 
 
 class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
@@ -360,14 +381,32 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
         interview = self.get_object()
 
         if user.is_staff or interview.application.job.recruiter == user:
-            # Save the updated interview first
-            updated_interview = serializer.save()
+            try:
+                print(f"Starting interview update for ID: {interview.id}")
 
-            # Then check if a new video was uploaded
-            if "interview_video" in self.request.FILES:
-                interview_video = self.request.FILES["interview_video"]
-                if interview_video:
-                    self.process_interview_video(updated_interview, interview_video)
+                # Save the updated interview first
+                updated_interview = serializer.save()
+                print("Interview basic data updated successfully")
+
+                # Then check if a new video was uploaded
+                if "interview_video" in self.request.FILES:
+                    interview_video = self.request.FILES["interview_video"]
+                    if interview_video:
+                        print(f"Processing video upload: {interview_video.name}")
+                        print(f"Video size: {interview_video.size} bytes")
+                        print(f"Video content type: {interview_video.content_type}")
+
+                        self.process_interview_video(updated_interview, interview_video)
+                        print("Video processing completed")
+                else:
+                    print("No video file in request")
+
+            except Exception as e:
+                print(f"❌ Error in perform_update: {e}")
+                import traceback
+
+                traceback.print_exc()
+                raise  # Re-raise the exception so it shows in the response
 
     def process_interview_video(self, interview, video_file):
         try:
