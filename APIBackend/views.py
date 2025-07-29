@@ -1,3 +1,5 @@
+import tempfile
+import os
 from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage
 from rest_framework import generics, status
@@ -200,7 +202,9 @@ class ApplicationView(generics.ListCreateAPIView):
             # Remove the full_path line completely
             try:
                 screening_service = ResumeScreeningService()
-                result = screening_service.screen_resume(file_path, application.job)  # Use file_path directly
+                result = screening_service.screen_resume(
+                    file_path, application.job
+                )  # Use file_path directly
                 # Update application with screening results
                 new_status_id = result["status_id"]  # could be 1 or 2 or 3
                 new_status = Status.objects.get(pk=new_status_id)
@@ -311,7 +315,13 @@ class InterviewView(generics.ListCreateAPIView):
             interview.interview_video = video_file
             interview.save()
 
-            full_path = interview.interview_video.path
+            # full_path = interview.interview_video.path wont work as files in r2
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                interview.interview_video.open("rb")
+                for chunk in interview.interview_video.chunks():
+                    temp_file.write(chunk)
+                interview.interview_video.close()
+                full_path = temp_file.name
 
             try:
                 analysis_service = InterviewAnalysisService()
@@ -322,6 +332,12 @@ class InterviewView(generics.ListCreateAPIView):
             except Exception as e:
                 # Log the error but don't raise it
                 print(f"Error in video analysis: {e}")
+            finally:
+                # Clean up
+                try:
+                    os.unlink(full_path)
+                except OSError:
+                    pass
 
         except Exception as e:
             print(f"Error saving interview video: {e}")
@@ -374,7 +390,13 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
             interview.save()
 
             # Get the full path to the saved file
-            full_path = interview.interview_video.path
+            # full_path = interview.interview_video.path cant do this for cloud storage r2 stored files
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                interview.interview_video.open("rb")
+                for chunk in interview.interview_video.chunks():
+                    temp_file.write(chunk)
+                interview.interview_video.close()
+                full_path = temp_file.name
 
             # Now process the video for analysis
             try:
@@ -388,6 +410,13 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
             except Exception as e:
                 # Log the error but don't raise it
                 print(f"Error in video analysis: {e}")
+
+            finally:
+                # Clean up
+                try:
+                    os.unlink(full_path)
+                except OSError:
+                    pass
 
         except Exception as e:
             print(f"Error saving interview video: {e}")

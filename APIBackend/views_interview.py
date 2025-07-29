@@ -55,8 +55,17 @@ class InterviewRecordingView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Get the full path to the video file
-            video_path = interview.interview_video.path
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_file:
+                # Read the video file content from R2 storage
+                interview.interview_video.open('rb')
+
+                # Copy the content to temporary file
+                for chunk in interview.interview_video.chunks():
+                    temp_file.write(chunk)
+
+                interview.interview_video.close()
+                video_path = temp_file.name
 
             try:
                 # Process the video
@@ -88,13 +97,18 @@ class InterviewRecordingView(APIView):
                         "result_title": interview.result.title,
                     }
                 )
-
             except Exception as e:
                 logger.error(f"Error processing video: {e}")
                 return Response(
                     {"error": f"Failed to process video: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+            finally:
+                #cleanup temporary file
+                try:
+                    os.unlink(video_path)
+                except OSError:
+                    logger.warning(f"Could not delete temporary file: {video_path}")
 
         except Exception as e:
             logger.error(f"Unexpected error in InterviewRecordingView: {e}")
