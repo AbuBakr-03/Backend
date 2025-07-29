@@ -17,8 +17,29 @@ ALLOWED_HOSTS = []
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-MODELS_ROOT = os.path.join(BASE_DIR, "APIBackend", "AImodels")
+# This determines where AI models are stored based on environment
 
+# Check if we're running on Render (production) or locally (development)
+IS_RENDER = os.getenv("RENDER") is not None  # Render sets this environment variable
+IS_LOCAL_DEV = DEBUG and not IS_RENDER  # Local development mode
+
+if IS_RENDER:
+    # On Render: Store models in /tmp folder (gets cleared when container restarts)
+    MODELS_ROOT = "/tmp/ai_models"
+    print("🚀 Running on Render - models will be stored in /tmp/ai_models")
+
+elif IS_LOCAL_DEV:
+    # Local development: Use your existing AImodels folder
+    MODELS_ROOT = os.path.join(BASE_DIR, "APIBackend", "AImodels")
+    print("💻 Running locally - using existing AImodels folder")
+
+else:
+    # Other production environments: Use a models folder in project
+    MODELS_ROOT = os.path.join(BASE_DIR, "models")
+    print("🌐 Running in production - models stored in project/models folder")
+
+# Make sure the folder exists
+os.makedirs(MODELS_ROOT, exist_ok=True)
 
 INSTALLED_APPS = [
     "django.contrib.admin",

@@ -15,6 +15,7 @@ from collections import Counter
 import logging
 from django.conf import settings
 import gc
+from .model_downloader import download_ai_models
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,25 @@ class InterviewAnalysisService:
     """Service for analyzing interview recordings with both audio and facial emotion recognition."""
 
     def __init__(self):
+        """Service for analyzing interview recordings with both audio and facial emotion recognition."""
+
+        # STEP 1: Download AI models if we're in production and they don't exist
+        # This only runs on Render, not on your local machine
+        if os.getenv("RENDER"):  # Only on Render server
+            print(
+                "🚀 Running on Render - checking if AI models need to be downloaded..."
+            )
+            try:
+                download_ai_models()  # Download models from R2 if they don't exist
+            except Exception as e:
+                print(f"❌ Failed to download AI models: {e}")
+                print("   The app will try to continue with existing models...")
+
+        # STEP 2: Set up model paths (same as before, just cleaner comments)
         # Get the base path to AImodels directory using Django settings
         self.base_path = os.path.join(settings.MODELS_ROOT)
 
-        # Model paths using relative paths
+        # Model file paths - these point to where models are stored
         self.audio_model_path = os.path.join(
             self.base_path, "full_audio_emotion_model.h5"
         )
@@ -34,18 +50,19 @@ class InterviewAnalysisService:
         self.scaler_path = os.path.join(self.base_path, "scaler2.pickle")
         self.encoder_path = os.path.join(self.base_path, "encoder2.pickle")
 
-        # Haarcascade for face detection
+        # Haarcascade for face detection (this comes with OpenCV)
         self.face_cascade_path = (
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
-        # Load models and preprocessing objects when needed
+        # Initialize model variables (loaded later when needed)
         self._audio_model = None
         self._face_model = None
         self._scaler = None
         self._encoder = None
         self._face_cascade = None
 
+        # Rest of your existing __init__ code stays exactly the same:
         # Mapping for emotions to categories
         self.combined_mapping = {
             "angry": "Fear",
@@ -70,17 +87,17 @@ class InterviewAnalysisService:
 
         # Emotion weights for confidence scoring
         self.emotion_weights = {
-            "Happy": 1.00,  # Happiness is recognized most accurately
-            "Surprise": 0.80,  # Second-highest accuracy
-            "Neutral": 0.7,  # Emotional expressions are detected more accurately than neutral
-            "Disgust": 0.55,  # Mid-tier accuracy (disgust > anger)
-            "Angry": 0.4,  # Slightly below disgust (anger > sadness)
-            "Sad": 0.3,  # Lower but above fear (sadness > fear)
-            "Fear": 0.10,  # Fear is recognized least accurately
+            "Happy": 1.00,
+            "Surprise": 0.80,
+            "Neutral": 0.7,
+            "Disgust": 0.55,
+            "Angry": 0.4,
+            "Sad": 0.3,
+            "Fear": 0.10,
         }
 
-        self.chunk_duration = 5  # Process 5-second chunks
-        self.frame_sample_rate = 5  # Process 1 frame every N frames
+        self.chunk_duration = 5
+        self.frame_sample_rate = 5
 
     def load_models(self):
         """Lazy-load models when needed"""
@@ -134,7 +151,7 @@ class InterviewAnalysisService:
             raise
 
     def process_recording(self, video_path):
-        
+
         try:
             # Create a temporary working directory
             temp_dir = tempfile.mkdtemp(prefix="interview_analysis_")
@@ -528,7 +545,7 @@ class InterviewAnalysisService:
         return confidence * 100  # Return as percentage
 
     def determine_result(self, confidence_score):
-        
+
         # Threshold values can be adjusted
         if confidence_score >= 39:
             return 2  # Approved/Hired
