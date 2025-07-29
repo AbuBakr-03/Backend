@@ -95,8 +95,7 @@ google-auth==2.40.3
 google-auth-httplib2==0.2.0
 googleapis-common-protos==1.70.0
 grpcio==1.74.0
-grpcio-status==1.71.2
-protobuf>=4.25.0
+grpcio-status==1.62.3
 
 # Document Processing
 pypdf2==3.0.1
