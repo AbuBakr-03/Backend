@@ -76,7 +76,7 @@ boto3==1.39.14
 botocore==1.39.14
 
 # AI & ML - Compatible versions
-tensorflow==2.15.1
+tensorflow==2.16.1
 opencv-python>=4.8.0
 numpy==1.26.4
 scikit-learn==1.4.2
@@ -86,17 +86,17 @@ imageio[ffmpeg]==2.37.0
 imageio-ffmpeg==0.6.0
 nltk==3.9.1
 
-# Google AI - Compatible versions (downgraded to avoid conflicts)
-google-generativeai==0.7.2
-google-ai-generativelanguage==0.5.4
-google-api-core[grpc]==2.19.1
+# Google AI - Compatible versions with TensorFlow 2.16.1
+google-generativeai==0.8.5
+google-ai-generativelanguage==0.6.15
+google-api-core[grpc]==2.25.1
 google-api-python-client==2.177.0
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
-googleapis-common-protos==1.63.2
-grpcio==1.62.2
-grpcio-status==1.62.2
-protobuf==4.25.4
+googleapis-common-protos==1.70.0
+grpcio==1.74.0
+grpcio-status==1.71.2
+protobuf>=4.25.0
 
 # Document Processing
 pypdf2==3.0.1
