@@ -22,7 +22,7 @@ class InterviewRecordingView(APIView):
 
     def post(self, request, pk=None):
         """
-        Process an interview video and update the interview result - Optimized for Railway Pro
+        Process an interview video and update the interview result - Slow but Real AI
         """
         try:
             # Get the interview object
@@ -55,82 +55,94 @@ class InterviewRecordingView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Memory optimization: Force garbage collection before starting
+            logger.info(
+                "Starting comprehensive AI analysis - this may take 60+ seconds..."
+            )
+
+            # STEP 1: Configure TensorFlow for maximum stability
+            import os
             import gc
 
-            gc.collect()
+            # Force CPU-only mode for stability
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+            os.environ["OMP_NUM_THREADS"] = "2"
 
-            # Download video from R2 to temporary file with memory management
+            import tensorflow as tf
+
+            # Conservative TensorFlow configuration
+            tf.config.set_soft_device_placement(True)
+            tf.config.threading.set_intra_op_parallelism_threads(2)
+            tf.config.threading.set_inter_op_parallelism_threads(2)
+
+            # Disable GPU completely
+            tf.config.set_visible_devices([], "GPU")
+
+            logger.info("TensorFlow configured for CPU-only stable processing")
+
+            # STEP 2: Download video with progress logging
             import tempfile
             import requests
 
             video_url = interview.interview_video.url
-            logger.info(f"Downloading video from R2: {video_url}")
+            logger.info(f"Downloading video from R2...")
 
             temp_video_path = None
             try:
-                # Create temporary file with automatic cleanup
                 with tempfile.NamedTemporaryFile(
                     delete=False, suffix=".mp4"
                 ) as temp_file:
-                    # Download video in smaller chunks to manage memory better
-                    response = requests.get(video_url, stream=True, timeout=300)
+                    response = requests.get(
+                        video_url, stream=True, timeout=600
+                    )  # 10 min timeout
                     response.raise_for_status()
 
-                    total_size = 0
-                    chunk_size = 4096  # Smaller chunks for better memory management
-
-                    for chunk in response.iter_content(chunk_size=chunk_size):
+                    downloaded_size = 0
+                    for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             temp_file.write(chunk)
-                            total_size += len(chunk)
+                            downloaded_size += len(chunk)
 
-                            # Memory check: Force GC every 1MB downloaded
-                            if total_size % (1024 * 1024) == 0:
-                                gc.collect()
+                            # Log progress every MB
+                            if downloaded_size % (1024 * 1024) == 0:
+                                logger.info(
+                                    f"Downloaded {downloaded_size // (1024*1024)}MB..."
+                                )
 
                     temp_video_path = temp_file.name
                     logger.info(
-                        f"Video downloaded ({total_size/(1024*1024):.2f}MB) to: {temp_video_path}"
+                        f"Video download complete: {downloaded_size/(1024*1024):.2f}MB"
                     )
 
-                # Another GC before AI processing
+                # STEP 3: Clean memory before AI processing
                 gc.collect()
+                logger.info("Starting AI model initialization...")
 
+                # STEP 4: Process with detailed logging
                 try:
-                    # Process the video using your original AI analysis
-                    logger.info("Starting AI analysis of the video...")
-
-                    # Import tensorflow here to control memory growth
-                    import tensorflow as tf
-
-                    # Configure TensorFlow for better memory management
-                    gpus = tf.config.experimental.list_physical_devices("GPU")
-                    if gpus:
-                        try:
-                            for gpu in gpus:
-                                tf.config.experimental.set_memory_growth(gpu, True)
-                        except RuntimeError as e:
-                            logger.warning(f"GPU config warning: {e}")
-
-                    # Limit TensorFlow CPU memory usage
-                    tf.config.threading.set_intra_op_parallelism_threads(2)
-                    tf.config.threading.set_inter_op_parallelism_threads(2)
-
-                    # Now run the analysis
                     analysis_service = InterviewAnalysisService()
+                    logger.info("InterviewAnalysisService created successfully")
+
+                    # Load models with logging
+                    logger.info("Loading AI models...")
+                    analysis_service.load_models()
+                    logger.info("AI models loaded successfully")
+
+                    # Process the recording
+                    logger.info("Starting video processing - this will take time...")
                     analysis_result = analysis_service.process_recording(
                         temp_video_path
                     )
 
-                    # Clean up memory after analysis
+                    logger.info(f"AI Analysis completed successfully!")
+                    logger.info(f"Results: {analysis_result}")
+
+                    # Clean up models from memory
                     del analysis_service
                     gc.collect()
 
-                    # Update the interview with the analysis results
-                    logger.info(
-                        f"Analysis completed. Updating interview with result: {analysis_result}"
-                    )
+                    # STEP 5: Update database with results
+                    logger.info("Updating interview with AI analysis results...")
                     interview.update_result_from_analysis(analysis_result)
 
                     if interview.result.id == 2:
@@ -139,8 +151,12 @@ class InterviewRecordingView(APIView):
                         PredictedCandidate.objects.get_or_create(
                             interview=interview, defaults={"status_id": 1}
                         )
+                        logger.info("Predicted candidate record created")
 
-                    # Return the analysis results
+                    logger.info(
+                        f"Interview analysis complete - Result: {interview.result.title}"
+                    )
+
                     return Response(
                         {
                             "success": True,
@@ -152,18 +168,15 @@ class InterviewRecordingView(APIView):
                         }
                     )
 
-                except Exception as e:
-                    logger.error(f"Error processing video with AI: {e}")
+                except Exception as ai_error:
+                    logger.error(f"AI processing failed: {ai_error}")
                     import traceback
 
                     traceback.print_exc()
-                    return Response(
-                        {"error": f"AI analysis failed: {str(e)}"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    )
+                    raise ai_error
 
             finally:
-                # Clean up temporary file
+                # Always clean up temporary file
                 if temp_video_path and os.path.exists(temp_video_path):
                     try:
                         os.unlink(temp_video_path)
@@ -171,15 +184,15 @@ class InterviewRecordingView(APIView):
                     except Exception as cleanup_error:
                         logger.warning(f"Failed to cleanup temp file: {cleanup_error}")
 
-                # Final garbage collection
+                # Final cleanup
                 gc.collect()
 
         except Exception as e:
-            logger.error(f"Unexpected error in InterviewRecordingView: {e}")
+            logger.error(f"Analysis failed with error: {e}")
             import traceback
 
             traceback.print_exc()
             return Response(
-                {"error": "An unexpected error occurred."},
+                {"error": f"Analysis failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
