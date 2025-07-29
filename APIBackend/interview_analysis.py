@@ -479,11 +479,30 @@ class InterviewAnalysisService:
                     input_face = np.expand_dims(normalized_face, axis=0)
                     input_face = np.expand_dims(input_face, axis=-1)
 
-                    # Predict emotion
-                    prediction = self._face_model.predict(input_face, verbose=0)
-                    emotion_idx = np.argmax(prediction)
-                    emotion = self.face_emotion_labels[emotion_idx]
-                    emotion_predictions.append(emotion)
+                    # prediction = self._face_model.predict(input_face, verbose=0) The face model is trying to process 209 frames at once, and each predict() call creates memory that isn't being cleared fast enough, leading to OOM.
+
+                    # Memory-optimized prediction
+                    # What This Does:
+                    # Forces single batch processing: batch_size=1 prevents TensorFlow from trying to optimize batches
+                    # Immediate memory cleanup: del prediction and gc.collect() right after each prediction
+                    # Error handling: If one frame fails, continue with others
+                    try:
+                        prediction = self._face_model.predict(
+                            input_face,
+                            verbose=0,
+                            batch_size=1,  # Force single prediction at a time
+                        )
+                        emotion_idx = np.argmax(prediction)
+                        emotion = self.face_emotion_labels[emotion_idx]
+                        emotion_predictions.append(emotion)
+
+                        # Immediately clear the prediction to free memory
+                        del prediction
+                        gc.collect()
+
+                    except Exception as e:
+                        logger.warning(f"Face prediction failed for {img_file}: {e}")
+                        continue
 
             except Exception as e:
                 logger.error(f"Error processing frame {img_file}: {e}")
