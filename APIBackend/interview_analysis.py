@@ -95,9 +95,12 @@ class InterviewAnalysisService:
             "Sad": 0.3,
             "Fear": 0.10,
         }
+        self.chunk_duration = 10  # Increased from 5 to 10 seconds (fewer chunks)
 
-        self.chunk_duration = 5
-        self.frame_sample_rate = 5
+        self.frame_sample_rate = 10  # Increased from 5 (process fewer frames)
+
+    # self.chunk_duration = 5
+    # self.frame_sample_rate = 5
 
     def load_models(self):
         """Lazy-load models when needed"""
