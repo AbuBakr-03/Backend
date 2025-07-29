@@ -13,7 +13,25 @@ SECRET_KEY = config("SECRET_KEY", cast=str, default="")
 GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast=bool, default=False)
-ALLOWED_HOSTS = []
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = "DENY"
+
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".render.com",  # Allow all Render subdomains
+    config("RENDER_EXTERNAL_HOSTNAME", default=""),  # Your specific Render URL
+]
+
+ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -178,7 +196,7 @@ SIMPLE_JWT = {
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5186",  # Your Vite dev server
+    "http://127.0.0.1:5186",
     "http://localhost:5186",
 ]
 CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
@@ -205,5 +223,31 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "helpers.cloudflare.storages.StaticFileStorage",
         "OPTIONS": CLOUDFLARE_R2_CONFIG_OPTIONS,
+    },
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "APIBackend": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
