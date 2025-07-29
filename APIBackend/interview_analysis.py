@@ -28,9 +28,9 @@ class InterviewAnalysisService:
 
         # STEP 1: Download AI models if we're in production and they don't exist
         # This only runs on Render, not on your local machine
-        if os.getenv("RENDER"):  # Only on Render server
+        if os.getenv("RAILWAY_ENVIRONMENT"):  # Only on Railway server
             print(
-                "🚀 Running on Render - checking if AI models need to be downloaded..."
+                "🚀 Running on Railway - checking if AI models need to be downloaded..."
             )
             try:
                 download_ai_models()  # Download models from R2 if they don't exist

@@ -27,7 +27,8 @@ if not DEBUG:
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    ".render.com",  # Allow all Render subdomains
+    ".railway.app",  # Allow all Render subdomains
+    "your-app-name.railway.app",  # Your specific Railway URL
     config("RENDER_EXTERNAL_HOSTNAME", default=""),  # Your specific Render URL
 ]
 
@@ -37,14 +38,14 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # This determines where AI models are stored based on environment
 
-# Check if we're running on Render (production) or locally (development)
-IS_RENDER = os.getenv("RENDER") is not None  # Render sets this environment variable
-IS_LOCAL_DEV = DEBUG and not IS_RENDER  # Local development mode
+# Check if we're running on Railway (production) or locally (development)
+IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None  # Railway sets this
+IS_LOCAL_DEV = DEBUG and not IS_RAILWAY
 
-if IS_RENDER:
-    # On Render: Store models in /tmp folder (gets cleared when container restarts)
+if IS_RAILWAY:
+    # On Railway: Store models in /tmp folder
     MODELS_ROOT = "/tmp/ai_models"
-    print("🚀 Running on Render - models will be stored in /tmp/ai_models")
+    print("🚀 Running on Railway - models will be stored in /tmp/ai_models")
 
 elif IS_LOCAL_DEV:
     # Local development: Use your existing AImodels folder
