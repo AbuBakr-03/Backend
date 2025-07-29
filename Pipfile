@@ -25,7 +25,6 @@ imageio = {extras = ["ffmpeg"], version = "*"}
 soundfile = "*"
 resend = "*"
 dj-rest-auth = {extras = ["with_social"], version = "*"}
-pygraphviz = "*"
 gunicorn = "*"
 numpy = "<2.0"
 
