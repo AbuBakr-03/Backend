@@ -11,13 +11,39 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 
 # Make sure to download NLTK resources
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
+# nltk.download("punkt")
+# nltk.download("stopwords")
+# nltk.download("wordnet")
+
+
+def ensure_nltk_data():
+    """Download NLTK data only when needed, with error handling"""
+    try:
+        # Try to use punkt first
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        print("Downloading NLTK punkt...")
+        nltk.download("punkt", quiet=True)
+
+    try:
+        # Try to use stopwords
+        nltk.data.find("corpora/stopwords")
+    except LookupError:
+        print("Downloading NLTK stopwords...")
+        nltk.download("stopwords", quiet=True)
+
+    try:
+        # Try to use wordnet
+        nltk.data.find("corpora/wordnet")
+    except LookupError:
+        print("Downloading NLTK wordnet...")
+        nltk.download("wordnet", quiet=True)
 
 
 class ResumeScreeningService:
+
     def __init__(self):
+        ensure_nltk_data()
         self.stopwords_path = os.path.join(
             settings.BASE_DIR, "APIBackend/data/stopwords.txt"
         )
