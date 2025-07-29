@@ -111,37 +111,15 @@ class InterviewAnalysisService:
         self.chunk_duration = 5
         self.frame_sample_rate = 5
 
-    # Replace your load_models method with this enhanced version
-
     def load_models(self):
-        """Lazy-load models when needed with enhanced GPU detection"""
+        """Lazy-load models when needed"""
         # Load models with try-except blocks for better error handling
         try:
-            # Enhanced GPU detection and logging
-            logger.info("🔍 Checking for GPU availability...")
-
-            # Check for CUDA availability
-            cuda_available = tf.test.is_built_with_cuda()
-            logger.info(f"   CUDA built: {cuda_available}")
-
-            # Check for GPUs
+            # Configure GPU memory growth to prevent OOM errors
             gpus = tf.config.experimental.list_physical_devices("GPU")
-            logger.info(f"   Physical GPUs found: {len(gpus)}")
-
             if gpus:
-                try:
-                    for i, gpu in enumerate(gpus):
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                        logger.info(f"   🚀 GPU {i} configured: {gpu}")
-                    logger.info("✅ GPU acceleration ENABLED")
-                except RuntimeError as e:
-                    logger.warning(f"⚠️ GPU setup failed: {e}")
-                    logger.info("💻 Falling back to CPU")
-            else:
-                logger.info("💻 No GPUs detected - using CPU")
-                # Optimize CPU performance
-                tf.config.threading.set_intra_op_parallelism_threads(2)
-                tf.config.threading.set_inter_op_parallelism_threads(2)
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
 
             # Load audio model if not loaded
             if self._audio_model is None:
@@ -159,25 +137,6 @@ class InterviewAnalysisService:
                 logger.info(f"Loading face model from {self.face_model_path}")
                 if os.path.exists(self.face_model_path):
                     self._face_model = load_model(self.face_model_path)
-
-                    # Test inference speed with a dummy prediction
-                    logger.info("🏃 Testing inference speed...")
-                    import time
-
-                    dummy_input = np.zeros((1, 56, 56, 1), dtype=np.float32)
-
-                    start_time = time.time()
-                    _ = self._face_model.predict(dummy_input, verbose=0)
-                    end_time = time.time()
-
-                    inference_time = (end_time - start_time) * 1000  # Convert to ms
-                    logger.info(f"⚡ Single prediction time: {inference_time:.1f}ms")
-
-                    if inference_time > 1000:  # If slower than 1 second
-                        logger.warning("🐌 Slow inference detected - may be using CPU")
-                    else:
-                        logger.info("🚀 Fast inference - likely using GPU")
-
                     logger.info("Face emotion model loaded successfully")
                 else:
                     logger.error(f"Face model file not found at {self.face_model_path}")
