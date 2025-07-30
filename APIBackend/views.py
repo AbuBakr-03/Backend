@@ -604,8 +604,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 token["refresh"],
                 max_age=cookie_max_age,
                 httponly=True,
-                secure=not settings.DEBUG,  # Use secure cookies in production
-                samesite="Lax",
+                secure=True,  # Use secure cookies in production
+                samesite="None",
             )
             return new_response
         else:
