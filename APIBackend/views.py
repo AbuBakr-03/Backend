@@ -589,25 +589,32 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
+        print(f"LOGIN REQUEST FROM: {request.META.get('HTTP_ORIGIN', 'No origin')}")
+        print(f"REQUEST HOST: {request.get_host()}")
+
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             token = response.data
-            # Create response with only access token (no refresh token in response body)
             response_data = {"access": token["access"], "role": token["role"]}
-            # Set refresh token in HttpOnly cookie
             new_response = Response(response_data, status=status.HTTP_200_OK)
+
             cookie_max_age = int(
                 settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
             )
+
+            print(f"SETTING COOKIE: refresh_token with max_age={cookie_max_age}")
+
             new_response.set_cookie(
                 "refresh_token",
                 token["refresh"],
                 max_age=cookie_max_age,
                 httponly=True,
-                secure=False,  # Use secure cookies in production
+                secure=False,
                 samesite="Lax",
                 domain=None,
             )
+
+            print(f"COOKIE SET: {new_response.cookies}")
             return new_response
         else:
             print(f"LOGIN: Failed with status {response.status_code}: {response.data}")
