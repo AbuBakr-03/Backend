@@ -236,7 +236,7 @@ CORS_ALLOW_METHODS = [
 ]
 
 # For development only - REMOVE this in production
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
 # Cloudflare R2 Configuration
 CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
 CLOUDFLARE_R2_ACCESS_KEY = config("CLOUDFLARE_R2_ACCESS_KEY", cast=str, default="")
