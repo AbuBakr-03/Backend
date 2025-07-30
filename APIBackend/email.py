@@ -14,12 +14,12 @@ class CustomPasswordResetEmail(PasswordResetEmail):
 
         # Only build reset_url if both uid and token exist
         if uid and token:
-            reset_url = f"http://127.0.0.1:5186/reset-password/{uid}/{token}"
+            reset_url = f"https://smarthr.website/reset-password/{uid}/{token}"
             context["reset_url"] = reset_url
         else:
             # Fallback for debugging
             context["reset_url"] = (
-                "http://127.0.0.1:5186/reset-password/MISSING_UID/MISSING_TOKEN"
+                "https://smarthr.website/reset-password/MISSING_UID/MISSING_TOKEN"
             )
 
         return context

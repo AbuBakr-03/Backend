@@ -10,7 +10,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("SECRET_KEY", cast=str, default="")
+
 GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
+
 DEBUG = config("DEBUG", cast=bool, default=False)
 
 # Security settings for production
