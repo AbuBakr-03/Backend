@@ -589,9 +589,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        print(f"LOGIN REQUEST FROM: {request.META.get('HTTP_ORIGIN', 'No origin')}")
-        print(f"REQUEST HOST: {request.get_host()}")
-
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             token = response.data
@@ -601,8 +598,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             cookie_max_age = int(
                 settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
             )
-
-            print(f"SETTING COOKIE: refresh_token with max_age={cookie_max_age}")
 
             new_response.set_cookie(
                 "refresh_token",
@@ -614,7 +609,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 domain=None,
             )
 
-            print(f"COOKIE SET: {new_response.cookies}")
             return new_response
         else:
             print(f"LOGIN: Failed with status {response.status_code}: {response.data}")
@@ -668,9 +662,5 @@ def logout_view(request):
     response = Response(
         {"detail": "Successfully logged out"}, status=status.HTTP_200_OK
     )
-    response.delete_cookie(
-        "refresh_token",
-        samesite="None",
-        secure=True,
-    )
+    response.delete_cookie("refresh_token")
     return response
