@@ -605,7 +605,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 max_age=cookie_max_age,
                 httponly=True,
                 secure=True,  # Use secure cookies in production
-                samesite="None",
+                samesite="Lax",
             )
             return new_response
         else:

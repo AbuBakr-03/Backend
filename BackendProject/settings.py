@@ -9,7 +9,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config("SECRET_KEY", cast=str, default="your-fallback-secret-key-here")
+SECRET_KEY = config("SECRET_KEY", cast=str, default="")
 GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
 DEBUG = config("DEBUG", cast=bool, default=False)
 
@@ -25,12 +25,11 @@ if not DEBUG:
     X_FRAME_OPTIONS = "DENY"
 
 # Railway-specific hostname handling
-RAILWAY_EXTERNAL_HOSTNAME = config("RAILWAY_PUBLIC_DOMAIN", default="")
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "*.railway.app",
-    RAILWAY_EXTERNAL_HOSTNAME,
+    "api.smarthr.website",  # Add your new domain
 ]
 
 # Filter out empty hosts
@@ -183,7 +182,7 @@ DJOSER = {
         "create_user": "APIBackend.serializers.CustomUserCreateSerializer",
     },
     "TOKEN_MODEL": None,
-    "DOMAIN": config("FRONTEND_URL", default="127.0.0.1:5186"),
+    "DOMAIN": "smarthr.website",  # Update this to your main domain
     "SITE_NAME": "SmartHR",
 }
 
@@ -208,9 +207,10 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5186",
-    "http://localhost:5186",
-    config("FRONTEND_URL", default=""),
+    "http://127.0.0.1:5000",  # Your current local frontend
+    "http://localhost:5000",
+    "https://smarthr.website",  # For future frontend domain
+    "https://www.smarthr.website",  # Alternative frontend URL
 ]
 
 # Add these for file uploads
