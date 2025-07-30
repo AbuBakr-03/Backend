@@ -304,43 +304,43 @@ class InterviewView(generics.ListCreateAPIView):
         result = Result.objects.get(pk=3)
         interview = serializer.save(result=result)
 
-        # Check if a video file was uploaded
-        if "interview_video" in self.request.FILES:
-            interview_video = self.request.FILES["interview_video"]
-            if interview_video:
-                self.process_interview_video(interview, interview_video)
+        # # Check if a video file was uploaded
+        # if "interview_video" in self.request.FILES:
+        #     interview_video = self.request.FILES["interview_video"]
+        #     if interview_video:
+        #         self.process_interview_video(interview, interview_video)
 
-    def process_interview_video(self, interview, video_file):
-        try:
-            interview.interview_video = video_file
-            interview.save()
+    # def process_interview_video(self, interview, video_file):
+    #     try:
+    #         interview.interview_video = video_file
+    #         interview.save()
 
-            # full_path = interview.interview_video.path wont work as files in r2
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-                interview.interview_video.open("rb")
-                for chunk in interview.interview_video.chunks():
-                    temp_file.write(chunk)
-                interview.interview_video.close()
-                full_path = temp_file.name
+    #         # full_path = interview.interview_video.path wont work as files in r2
+    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+    #             interview.interview_video.open("rb")
+    #             for chunk in interview.interview_video.chunks():
+    #                 temp_file.write(chunk)
+    #             interview.interview_video.close()
+    #             full_path = temp_file.name
 
-            try:
-                analysis_service = InterviewAnalysisService()
-                analysis_result = analysis_service.process_recording(full_path)
+    #         try:
+    #             analysis_service = InterviewAnalysisService()
+    #             analysis_result = analysis_service.process_recording(full_path)
 
-                interview.update_result_from_analysis(analysis_result)
+    #             interview.update_result_from_analysis(analysis_result)
 
-            except Exception as e:
-                # Log the error but don't raise it
-                print(f"Error in video analysis: {e}")
-            finally:
-                # Clean up
-                try:
-                    os.unlink(full_path)
-                except OSError:
-                    pass
+    #         except Exception as e:
+    #             # Log the error but don't raise it
+    #             print(f"Error in video analysis: {e}")
+    #         finally:
+    #             # Clean up
+    #             try:
+    #                 os.unlink(full_path)
+    #             except OSError:
+    #                 pass
 
-        except Exception as e:
-            print(f"Error saving interview video: {e}")
+    #     except Exception as e:
+    #         print(f"Error saving interview video: {e}")
 
 
 class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
@@ -378,48 +378,48 @@ class SingleInterviewView(generics.RetrieveUpdateDestroyAPIView):
             updated_interview = serializer.save()
 
             # Then check if a new video was uploaded
-            if "interview_video" in self.request.FILES:
-                interview_video = self.request.FILES["interview_video"]
-                if interview_video:
-                    self.process_interview_video(updated_interview, interview_video)
+            # if "interview_video" in self.request.FILES:
+            #     interview_video = self.request.FILES["interview_video"]
+            #     if interview_video:
+            #         self.process_interview_video(updated_interview, interview_video)
 
-    def process_interview_video(self, interview, video_file):
-        try:
-            # Save the video file directly to the model
-            interview.interview_video = video_file
-            interview.save()
+    # def process_interview_video(self, interview, video_file):
+    #     try:
+    #         # Save the video file directly to the model
+    #         interview.interview_video = video_file
+    #         interview.save()
 
-            # Get the full path to the saved file
-            # full_path = interview.interview_video.path cant do this for cloud storage r2 stored files
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-                interview.interview_video.open("rb")
-                for chunk in interview.interview_video.chunks():
-                    temp_file.write(chunk)
-                interview.interview_video.close()
-                full_path = temp_file.name
+    #         # Get the full path to the saved file
+    #         # full_path = interview.interview_video.path cant do this for cloud storage r2 stored files
+    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+    #             interview.interview_video.open("rb")
+    #             for chunk in interview.interview_video.chunks():
+    #                 temp_file.write(chunk)
+    #             interview.interview_video.close()
+    #             full_path = temp_file.name
 
-            # Now process the video for analysis
-            try:
-                # Analyze the video using the interview analysis service
-                analysis_service = InterviewAnalysisService()
-                analysis_result = analysis_service.process_recording(full_path)
+    #         # Now process the video for analysis
+    #         try:
+    #             # Analyze the video using the interview analysis service
+    #             analysis_service = InterviewAnalysisService()
+    #             analysis_result = analysis_service.process_recording(full_path)
 
-                # Update the interview with the analysis results
-                interview.update_result_from_analysis(analysis_result)
+    #             # Update the interview with the analysis results
+    #             interview.update_result_from_analysis(analysis_result)
 
-            except Exception as e:
-                # Log the error but don't raise it
-                print(f"Error in video analysis: {e}")
+    #         except Exception as e:
+    #             # Log the error but don't raise it
+    #             print(f"Error in video analysis: {e}")
 
-            finally:
-                # Clean up
-                try:
-                    os.unlink(full_path)
-                except OSError:
-                    pass
+    #         finally:
+    #             # Clean up
+    #             try:
+    #                 os.unlink(full_path)
+    #             except OSError:
+    #                 pass
 
-        except Exception as e:
-            print(f"Error saving interview video: {e}")
+    #     except Exception as e:
+    #         print(f"Error saving interview video: {e}")
 
     def perform_destroy(self, instance):
         user = self.request.user
