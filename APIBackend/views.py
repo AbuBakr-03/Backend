@@ -604,8 +604,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 token["refresh"],
                 max_age=cookie_max_age,
                 httponly=True,
-                secure=True,  # Use secure cookies in production
+                secure=False,  # Use secure cookies in production
                 samesite="Lax",
+                domain=None,
             )
             return new_response
         else:
@@ -639,8 +640,9 @@ class CustomTokenRefreshView(TokenRefreshView):
                         "REFRESH_TOKEN_LIFETIME"
                     ].total_seconds(),
                     httponly=True,
-                    secure=not settings.DEBUG,
+                    secure=False,
                     samesite="Lax",
+                    domain=None,
                 )
                 # Remove refresh token from response body
                 del token_data["refresh"]
@@ -659,5 +661,9 @@ def logout_view(request):
     response = Response(
         {"detail": "Successfully logged out"}, status=status.HTTP_200_OK
     )
-    response.delete_cookie("refresh_token")
+    response.delete_cookie(
+        "refresh_token",
+        samesite="Lax",
+        secure=False,
+    )
     return response
