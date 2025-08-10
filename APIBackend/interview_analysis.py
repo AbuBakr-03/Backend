@@ -40,15 +40,15 @@ class InterviewAnalysisService:
 
         # STEP 1: Download AI models if we're in production and they don't exist
         # This only runs on Render, not on your local machine
-        if os.getenv("RAILWAY_ENVIRONMENT"):  # Only on Railway server
-            print(
-                "🚀 Running on Railway - checking if AI models need to be downloaded..."
-            )
-            try:
-                download_ai_models()  # Download models from R2 if they don't exist
-            except Exception as e:
-                print(f"❌ Failed to download AI models: {e}")
-                print("   The app will try to continue with existing models...")
+        # if os.getenv("RAILWAY_ENVIRONMENT"):  # Only on Railway server
+        #     print(
+        #         "🚀 Running on Railway - checking if AI models need to be downloaded..."
+        #     )
+        #     try:
+        #         download_ai_models()  # Download models from R2 if they don't exist
+        #     except Exception as e:
+        #         print(f"❌ Failed to download AI models: {e}")
+        #         print("   The app will try to continue with existing models...")
 
         # STEP 2: Set up model paths (same as before, just cleaner comments)
         # Get the base path to AImodels directory using Django settings
@@ -163,7 +163,7 @@ class InterviewAnalysisService:
             raise
 
     def process_recording(self, video_path):
-
+        self.load_models()
         try:
             # Create a temporary working directory
             temp_dir = tempfile.mkdtemp(prefix="interview_analysis_")
