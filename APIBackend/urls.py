@@ -5,7 +5,7 @@ from django.urls import path
 from . import views
 from . import views_interview
 from . import views_questions
-
+# 
 urlpatterns = [
     path("department/", views.DepartmentView.as_view()),
     path("department/<int:pk>/", views.SingleDepartmentView.as_view()),
