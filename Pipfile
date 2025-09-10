@@ -14,7 +14,6 @@ djangorestframework-simplejwt = "*"
 django-filter = "*"
 django-cors-headers = "*"
 dj-database-url = "*"
-python-decouple = "*"
 python-dotenv = "*"
 whitenoise = "*"
 google-generativeai = "*"
@@ -27,6 +26,7 @@ resend = "*"
 dj-rest-auth = {extras = ["with_social"], version = "*"}
 gunicorn = "*"
 numpy = "<2.0"
+python-decouple = "*"
 
 [dev-packages]
 

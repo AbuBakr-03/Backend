@@ -13,7 +13,8 @@ SECRET_KEY = config("SECRET_KEY", cast=str, default="")
 
 GEMINI_API_KEY = config("GEMINI_API_KEY", cast=str, default="")
 
-DEBUG = config("DEBUG", cast=bool, default=False)
+DEBUG = True
+# DEBUG = config("DEBUG", cast=bool, default=False)
 
 # Security settings for production
 if not DEBUG:
@@ -181,7 +182,8 @@ DJOSER = {
     },
     "SERIALIZERS": {
         "current_user": "djoser.serializers.UserSerializer",
-        "create_user": "APIBackend.serializers.CustomUserCreateSerializer",
+        "user_create": "APIBackend.serializers.CustomUserCreateSerializer",
+        "user": "djoser.serializers.UserSerializer",
     },
     "TOKEN_MODEL": None,
     "DOMAIN": "smarthr.website",  # Update this to your main domain
@@ -238,7 +240,7 @@ CORS_ALLOW_METHODS = [
 ]
 
 # For development only - REMOVE this in production
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 # Cloudflare R2 Configuration
 CLOUDFLARE_R2_BUCKET = config("CLOUDFLARE_R2_BUCKET", cast=str, default="")
 CLOUDFLARE_R2_ACCESS_KEY = config("CLOUDFLARE_R2_ACCESS_KEY", cast=str, default="")

@@ -12,6 +12,7 @@ from django.conf.urls.static import static
 from APIBackend.views import (
     CustomTokenRefreshView,
     CustomTokenObtainPairView,
+    CustomUserCreateView,
     logout_view,
 )
 
@@ -19,6 +20,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("APIBackend.urls")),
     path("auth/", include("djoser.urls")),
+    path("auth/users/", CustomUserCreateView.as_view(), name="user_create"),  # Override Djoser user creation
     path("auth/jwt/create/", CustomTokenObtainPairView.as_view(), name="jwt_create"),
     path("auth/jwt/refresh/", CustomTokenRefreshView.as_view(), name="jwt_refresh"),
     path("auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),

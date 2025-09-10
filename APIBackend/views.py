@@ -29,6 +29,7 @@ from .serializers import (
     PredictedCandidateSerializer,
     CustomTokenObtainPairSerializer,
     CustomTokenRefreshSerializer,
+    CustomUserCreateSerializer,
 )
 
 from .models import (
@@ -618,41 +619,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
-    def post(self, request, *args, **kwargs):
-        # Get refresh token from HttpOnly cookie
-        refresh_token = request.COOKIES.get("refresh_token")
-        if not refresh_token:
-            return Response(
-                {"detail": "Refresh token not found in cookies"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-        # Add refresh token to request data
-        request.data["refresh"] = refresh_token
-        response = super().post(request, *args, **kwargs)
-        if response.status_code == 200:
-            token_data = response.data
-            # If rotation is enabled, we get a new refresh token
-            if "refresh" in token_data:
-                # Update the refresh token cookie
-                response.set_cookie(
-                    "refresh_token",
-                    token_data["refresh"],
-                    max_age=settings.SIMPLE_JWT[
-                        "REFRESH_TOKEN_LIFETIME"
-                    ].total_seconds(),
-                    httponly=True,
-                    secure=True,
-                    samesite="None",
-                    domain=None,
-                )
-                # Remove refresh token from response body
-                del token_data["refresh"]
-        else:
-            print(
-                f"REFRESH: Failed with status {response.status_code}: {response.data}"
-            )
+class CustomUserCreateView(generics.CreateAPIView):
+    serializer_class = CustomUserCreateSerializer
+    permission_classes = []  # Allow anonymous access
 
-        return response
 
 
 @api_view(["POST"])
