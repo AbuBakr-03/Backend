@@ -212,9 +212,20 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5000",  # Your current local frontend
     "http://localhost:5000",
-    "https://smarthr.website",  # For future frontend domain
+    "https://smarthr.website",  # Your production frontend domain
     "https://www.smarthr.website",  # Alternative frontend URL
 ]
+
+# Cookie settings for cross-subdomain sharing
+SESSION_COOKIE_DOMAIN = ".smarthr.website"
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "None"
+
+CSRF_COOKIE_DOMAIN = ".smarthr.website"
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = False  # Frontend needs to read this for API calls
+CSRF_COOKIE_SAMESITE = "None"
 
 # Add these for file uploads
 CORS_ALLOW_HEADERS = [

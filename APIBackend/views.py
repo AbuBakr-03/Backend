@@ -609,7 +609,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 httponly=True,
                 secure=True,
                 samesite="None",
-                domain=None,
+                domain=".smarthr.website",  # Allow sharing between api.smarthr.website and smarthr.website
             )
 
             return new_response
