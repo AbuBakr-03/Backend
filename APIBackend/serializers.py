@@ -190,6 +190,18 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
     def validate(self, attrs):
+        # Get refresh token from cookie if not in attrs
+        if "refresh" not in attrs:
+            request = self.context.get("request")
+            if request:
+                refresh_token = request.COOKIES.get("refresh_token")
+                if refresh_token:
+                    attrs["refresh"] = refresh_token
+                else:
+                    raise serializers.ValidationError("No refresh token found")
+            else:
+                raise serializers.ValidationError("No request context available")
+        
         data = super().validate(attrs)
         # Get the refresh token and extract user info
         refresh = RefreshToken(attrs["refresh"])
