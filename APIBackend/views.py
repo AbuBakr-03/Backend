@@ -608,7 +608,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 max_age=cookie_max_age,
                 httponly=True,
                 secure=True,
-                samesite="None",
+                samesite="Lax",  # Changed from "None" to "Lax" for better compatibility
                 domain=".smarthr.website",  # Allow sharing between api.smarthr.website and smarthr.website
             )
 

@@ -220,12 +220,12 @@ CORS_ALLOWED_ORIGINS = [
 SESSION_COOKIE_DOMAIN = ".smarthr.website"
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "Lax"  # Changed from "None" to "Lax" for better compatibility
 
 CSRF_COOKIE_DOMAIN = ".smarthr.website"
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = False  # Frontend needs to read this for API calls
-CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "Lax"  # Changed from "None" to "Lax" for better compatibility
 
 # Add these for file uploads
 CORS_ALLOW_HEADERS = [
